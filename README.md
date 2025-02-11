@@ -1,1 +1,1 @@
-# Dentel-Management-System
+# Dental-Management-System
