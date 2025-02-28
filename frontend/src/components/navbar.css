@@ -1,0 +1,39 @@
+.navbar {
+    background: rgba(255, 255, 255, 0.1) !important; /* Transparent glass effect */
+    backdrop-filter: blur(40px); /* Blurry premium look */
+    box-shadow: none !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    transition: all 0.3s ease-in-out;
+  }
+  
+  .logo {
+    font-weight: bold;
+    font-size: 1.5rem;
+    color: #fff !important;
+  }
+  
+  .nav-button {
+    font-size: 1rem;
+    color: #fff !important;
+    text-transform: none;
+    margin: 0 10px;
+    transition: 0.3s ease-in-out;
+  }
+  
+  .nav-button:hover {
+    color: #0fb5f2 !important; /* Gold hover effect */
+  }
+  
+  .login-button {
+    border: 2px solid #fff !important;
+    color: #fff !important;
+    text-transform: none;
+    font-weight: bold;
+    transition: 0.3s ease-in-out;
+  }
+  
+  .login-button:hover {
+    background: #0fb5f2 !important;
+    color: #000 !important;
+  }
+  
