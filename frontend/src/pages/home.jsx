@@ -1,5 +1,6 @@
 import React from "react";
 import AboutUs from "../pages/aboutus"; // ✅ Import About Us section
+import Services from "../pages/Services"; // ✅ Import Services section
 import "./home.css"; // ✅ Ensure this CSS file exists
 
 function Home() {
@@ -14,8 +15,11 @@ function Home() {
         </div>
       </section>
 
-      {/* About Us Section - Now Part of Home Page */}
+      {/* About Us Section */}
       <AboutUs />
+
+      {/* Services Section */}
+      <Services />
     </div>
   );
 }

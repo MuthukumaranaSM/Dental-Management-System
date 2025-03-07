@@ -1,19 +1,18 @@
 import React from "react";
-import { Box, Typography, Container, Grid, Avatar } from "@mui/material";
+import { Box, Typography, Container, Grid } from "@mui/material";
 import { motion } from "framer-motion";
 import "./home.css";
 
 const teamMembers = [
   { id: 1, name: "Dr. John Doe", img: "/doctor1.jpg" },
-  { id: 2, name: "Dr. Emily Smith", img: "/team2.jpg" },
-  { id: 3, name: "Dr. Mark Wilson", img: "/team3.jpg" },
-  
+  { id: 2, name: "Dr. Emily Smith", img: "/doctor2.jpg" }
 ];
 
 const AboutUs = () => {
   return (
     <Box className="about-section">
       <Container>
+        {/* About Content */}
         <motion.div 
           className="about-content"
           initial={{ opacity: 0, y: 50 }}
@@ -35,17 +34,18 @@ const AboutUs = () => {
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, delay: 0.5 }}
         >
-          <Typography variant="h4" className="team-title">Our Team</Typography>
-          <Grid container spacing={3} justifyContent="center">
+          <Typography variant="h4" className="team-title">Meet Our Experts</Typography>
+          <Grid container spacing={5} justifyContent="center">
             {teamMembers.map((member) => (
               <Grid item key={member.id}>
                 <motion.div 
+                  className="doctor-card"
                   whileHover={{ scale: 1.1 }}
                   transition={{ duration: 0.3 }}
                 >
-                  <Avatar src={member.img} className="team-avatar" />
-                  <Typography variant="body2" className="team-name">{member.name}</Typography>
+                  <img src={member.img} alt={member.name} className="doctor-avatar" />
                 </motion.div>
+                <Typography variant="body2" className="doctor-name">{member.name}</Typography>
               </Grid>
             ))}
           </Grid>

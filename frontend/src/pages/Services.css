@@ -1,0 +1,53 @@
+.services-container {
+    width: 100%;
+    min-height: 100vh;
+    background: #F5EFE6 !important; /* ✅ Soft Beige */
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start; /* ✅ Moves content to the left */
+    text-align: left; /* ✅ Aligns text to the left */
+    padding: 60px 80px; /* ✅ Adds spacing from the left */
+}
+
+/* ✅ "Our Services" Title Styling */
+.services-title {
+    font-size: 20rem; /* ✅ Reduced font size */
+    font-weight: bold;
+    color: #1565c0;
+    margin-bottom: 20px;
+    text-align: left;
+    text-transform: uppercase;
+    position: relative;
+    align-self: flex-start; /* ✅ Ensures title stays on the left */
+}
+
+/* ✅ Optional: Remove underline effect */
+.services-title::after {
+    content: "";
+    display: none; /* ✅ Removes the underline */
+}
+
+/* ✅ Swiper Styling */
+.swiper {
+    width: 100%;
+    max-width: 1200px;
+    padding-bottom: 40px;
+}
+
+/* ✅ Ensures cards are properly aligned */
+.swiper-slide {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: auto;
+}
+
+/* ✅ Navigation Buttons */
+.swiper-button-prev, .swiper-button-next {
+    color: #1565c0 !important;
+}
+
+/* ✅ Pagination Bullets */
+.swiper-pagination-bullet {
+    background: #1565c0 !important;
+}
