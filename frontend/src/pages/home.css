@@ -147,3 +147,12 @@
     font-weight: 600;
     color: #1565c0;
 }
+
+.stats-section {
+    width: 100%;
+    padding: 80px 0;
+    background: #f5faff; /* Light blue background */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}

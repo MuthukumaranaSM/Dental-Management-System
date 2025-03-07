@@ -1,7 +1,8 @@
 import React from "react";
 import AboutUs from "../pages/aboutus"; // ✅ Import About Us section
 import Services from "../pages/Services"; // ✅ Import Services section
-import "./home.css"; // ✅ Ensure this CSS file exists
+import "./home.css"; 
+import StatsCounter from "../components/StatsCounter";
 
 function Home() {
   return (
@@ -20,6 +21,12 @@ function Home() {
 
       {/* Services Section */}
       <Services />
+
+       {/* Stats Counter Section */}
+       <section className="stats-section">
+        <StatsCounter />
+      </section>
+
     </div>
   );
 }
