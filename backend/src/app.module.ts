@@ -1,6 +1,9 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { AuthModule } from './auth/auth.module';
+import { UserModule } from './user/user.module';
+import { TokenModule } from './token/token.module';
 
 @Module({
   imports: [
@@ -22,6 +25,9 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
         logging: configService.get('DB_LOGGING', false),
       }),
     }),
+    AuthModule,
+    UserModule,
+    TokenModule,
   ],
   controllers: [],
   providers: [],
