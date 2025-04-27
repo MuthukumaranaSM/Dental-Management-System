@@ -37,6 +37,24 @@ function Navbar() {
     navigate('/');
   };
 
+  const scrollToSection = (sectionId) => {
+    if (location.pathname !== '/') {
+      navigate('/');
+      // Wait for navigation to complete before scrolling
+      setTimeout(() => {
+        const element = document.getElementById(sectionId);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 100);
+    } else {
+      const element = document.getElementById(sectionId);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+  };
+
   return (
     <AppBar position="fixed" className={`navbar ${isDashboard ? 'dashboard-nav' : ''}`}>
       <Toolbar>
@@ -50,13 +68,13 @@ function Navbar() {
         </Typography>
 
         <Box sx={{ flexGrow: 1, display: "flex", justifyContent: "center", gap: "50px" }}>
-          <Button color="inherit" component={Link} to="/" className="nav-button">
+          <Button color="inherit" onClick={() => scrollToSection('hero')} className="nav-button">
             Home
           </Button>
-          <Button color="inherit" component={Link} to="/about" className="nav-button">
+          <Button color="inherit" onClick={() => scrollToSection('about')} className="nav-button">
             About us
           </Button>
-          <Button color="inherit" component={Link} to="/services" className="nav-button">
+          <Button color="inherit" onClick={() => scrollToSection('services')} className="nav-button">
             Services
           </Button>
           {user && (
@@ -64,7 +82,7 @@ function Navbar() {
               Appointments
             </Button>
           )}
-          <Button color="inherit" component={Link} to="/contact" className="nav-button">
+          <Button color="inherit" onClick={() => scrollToSection('contact')} className="nav-button">
             Contact
           </Button>
         </Box>

@@ -8,7 +8,7 @@ import StatsCounter from "../components/StatsCounter";
 function Home() {
   return (
     <div className="home-container">
-      <section className="hero">
+      <section id="hero" className="hero">
         <div className="hero-content">
           <h1>Transform Your Smile<br />Transform Your Life</h1>
           <p>Experience world-class dental care with cutting-edge technology and compassionate experts dedicated to your perfect smile.</p>
@@ -19,14 +19,23 @@ function Home() {
       </section>
 
       {/* About Us Section */}
-      <AboutUs />
+      <section id="about">
+        <AboutUs />
+      </section>
 
       {/* Services Section */}
-      <Services />
+      <section id="services">
+        <Services />
+      </section>
 
       {/* Stats Counter Section */}
       <section className="stats-section">
         <StatsCounter />
+      </section>
+
+      {/* Contact Section */}
+      <section id="contact" className="contact-section">
+        {/* Contact section content will go here */}
       </section>
     </div>
   );
