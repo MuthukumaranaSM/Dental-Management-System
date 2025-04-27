@@ -1,18 +1,20 @@
 import React from "react";
-import AboutUs from "../pages/aboutus"; // ✅ Import About Us section
-import Services from "../pages/Services"; // ✅ Import Services section
-import "./home.css"; 
+import { Link } from "react-router-dom";
+import AboutUs from "../pages/aboutus";
+import Services from "../pages/Services";
+import "./home.css";
 import StatsCounter from "../components/StatsCounter";
 
 function Home() {
   return (
     <div className="home-container">
-      {/* Hero Section */}
       <section className="hero">
         <div className="hero-content">
-          <h1>Your Smile, Our Priority</h1>
-          <p>Advanced dental care with a compassionate touch.</p>
-          <button className="hero-button">Book an Appointment</button>
+          <h1>Transform Your Smile<br />Transform Your Life</h1>
+          <p>Experience world-class dental care with cutting-edge technology and compassionate experts dedicated to your perfect smile.</p>
+          <button className="hero-button" onClick={() => window.location.href='/appointments'}>
+            Schedule Your Visit
+          </button>
         </div>
       </section>
 
@@ -22,11 +24,10 @@ function Home() {
       {/* Services Section */}
       <Services />
 
-       {/* Stats Counter Section */}
-       <section className="stats-section">
+      {/* Stats Counter Section */}
+      <section className="stats-section">
         <StatsCounter />
       </section>
-
     </div>
   );
 }

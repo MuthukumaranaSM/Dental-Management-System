@@ -4,6 +4,9 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
 import { TokenModule } from './token/token.module';
+import { AppointmentController } from './appointment/appointment.controller';
+import { AppointmentService } from './appointment/appointment.service';
+import { AppointmentModule } from './appointment/appointment.module';
 
 @Module({
   imports: [
@@ -28,8 +31,9 @@ import { TokenModule } from './token/token.module';
     AuthModule,
     UserModule,
     TokenModule,
+    AppointmentModule,
   ],
-  controllers: [],
-  providers: [],
+  controllers: [AppointmentController],
+  providers: [AppointmentService],
 })
 export class AppModule {}

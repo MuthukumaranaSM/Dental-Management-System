@@ -1,53 +1,118 @@
 .services-container {
     width: 100%;
     min-height: 100vh;
-    background: #F5EFE6 !important; /* ✅ Soft Beige */
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
     display: flex;
     flex-direction: column;
-    align-items: flex-start; /* ✅ Moves content to the left */
-    text-align: left; /* ✅ Aligns text to the left */
-    padding: 60px 80px; /* ✅ Adds spacing from the left */
-}
-
-/* ✅ "Our Services" Title Styling */
-.services-title {
-    font-size: 20rem; /* ✅ Reduced font size */
-    font-weight: bold;
-    color: #1565c0;
-    margin-bottom: 20px;
-    text-align: left;
-    text-transform: uppercase;
+    padding: 120px 80px;
     position: relative;
-    align-self: flex-start; /* ✅ Ensures title stays on the left */
+    overflow: hidden;
 }
 
-/* ✅ Optional: Remove underline effect */
+.services-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 800px;
+    height: 800px;
+    background: radial-gradient(circle, rgba(21,101,192,0.05) 0%, rgba(21,101,192,0) 70%);
+    border-radius: 50%;
+    transform: translate(30%, -30%);
+    z-index: 0;
+}
+
+.services-title {
+    font-size: clamp(2rem, 5vw, 3rem);
+    font-weight: 700;
+    color: #1565c0;
+    margin-bottom: 60px;
+    position: relative;
+    z-index: 1;
+}
+
 .services-title::after {
-    content: "";
-    display: none; /* ✅ Removes the underline */
+    content: '';
+    position: absolute;
+    bottom: -15px;
+    left: 0;
+    width: 80px;
+    height: 4px;
+    background: #1565c0;
+    border-radius: 2px;
 }
 
-/* ✅ Swiper Styling */
 .swiper {
     width: 100%;
-    max-width: 1200px;
-    padding-bottom: 40px;
+    max-width: 1400px;
+    padding: 20px 0 60px;
+    z-index: 1;
 }
 
-/* ✅ Ensures cards are properly aligned */
 .swiper-slide {
     display: flex;
     justify-content: center;
     align-items: center;
     height: auto;
+    transition: transform 0.3s ease;
 }
 
-/* ✅ Navigation Buttons */
-.swiper-button-prev, .swiper-button-next {
+.swiper-button-prev,
+.swiper-button-next {
     color: #1565c0 !important;
+    background: rgba(255, 255, 255, 0.95);
+    width: 50px !important;
+    height: 50px !important;
+    border-radius: 50%;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
 }
 
-/* ✅ Pagination Bullets */
+.swiper-button-prev:hover,
+.swiper-button-next:hover {
+    background: #1565c0;
+    color: white !important;
+    box-shadow: 0 6px 16px rgba(21,101,192,0.2);
+    transform: scale(1.1);
+}
+
+.swiper-button-prev:after,
+.swiper-button-next:after {
+    font-size: 20px !important;
+    font-weight: bold;
+}
+
 .swiper-pagination-bullet {
-    background: #1565c0 !important;
+    width: 10px;
+    height: 10px;
+    background: #b0bec5;
+    opacity: 1;
+    transition: all 0.3s ease;
+}
+
+.swiper-pagination-bullet-active {
+    width: 30px;
+    border-radius: 5px;
+    background: #1565c0;
+}
+
+@media (max-width: 768px) {
+    .services-container {
+        padding: 100px 20px;
+    }
+    
+    .services-title {
+        text-align: center;
+        margin-bottom: 40px;
+    }
+    
+    .services-title::after {
+        left: 50%;
+        transform: translateX(-50%);
+    }
+    
+    .swiper-button-prev,
+    .swiper-button-next {
+        display: none;
+    }
 }

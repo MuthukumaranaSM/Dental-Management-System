@@ -1,39 +1,80 @@
 .navbar {
-    background: rgba(255, 255, 255, 0.1) !important; /* Transparent glass effect */
-    backdrop-filter: blur(40px); /* Blurry premium look */
-    box-shadow: none !important;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-    transition: all 0.3s ease-in-out;
-  }
-  
-  .logo {
-    font-weight: bold;
-    font-size: 1.5rem;
-    color: #fff !important;
-  }
-  
-  .nav-button {
-    font-size: 1rem;
-    color: #fff !important;
-    text-transform: none;
-    margin: 0 10px;
-    transition: 0.3s ease-in-out;
-  }
-  
-  .nav-button:hover {
-    color: #0fb5f2 !important; /* Gold hover effect */
-  }
-  
-  .login-button {
-    border: 2px solid #fff !important;
-    color: #fff !important;
-    text-transform: none;
-    font-weight: bold;
-    transition: 0.3s ease-in-out;
-  }
-  
-  .login-button:hover {
-    background: #0fb5f2 !important;
-    color: #000 !important;
-  }
-  
+  background: rgba(255, 255, 255, 0.98) !important;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08) !important;
+  transition: all 0.4s ease-in-out;
+  padding: 8px 0;  /* Reduced from 12px */
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+}
+
+/* Add smaller navbar for dashboard and login pages */
+.dashboard-nav {
+  padding: 4px 0 !important;  /* Reduced from 6px */
+  height: 60px;  /* Adding fixed height */
+}
+
+.dashboard-nav .logo {
+  font-size: 1.6rem !important;  /* Reduced from 1.8rem */
+}
+
+.dashboard-nav .nav-button {
+  padding: 4px 10px !important;  /* Reduced from 6px 12px */
+  font-size: 0.9rem !important;  /* Slightly smaller */
+}
+
+.navbar.scrolled {
+  padding: 6px 0;  /* Reduced from 8px */
+  background: rgba(255, 255, 255, 0.95) !important;
+}
+
+.logo {
+  font-weight: 800 !important;
+  font-size: 2.2rem !important;
+  background: linear-gradient(135deg, #0d47a1, #1976d2);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.5px;
+  position: relative;
+  z-index: 2;
+  transition: all 0.3s ease;
+}
+
+.nav-button {
+  color: #1565c0 !important;
+  font-size: 1.05rem !important;
+  font-weight: 500 !important;
+  text-transform: none !important;
+  margin: 0 8px !important;
+  padding: 8px 16px !important;
+  border-radius: 8px !important;
+  transition: all 0.3s ease-in-out !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.nav-button:hover {
+  background: rgba(21, 101, 192, 0.08) !important;
+  transform: translateY(-2px);
+}
+
+.login-button {
+  background: linear-gradient(135deg, #1565c0, #42a5f5) !important;
+  color: white !important;
+  text-transform: none !important;
+  font-weight: 600 !important;
+  padding: 10px 30px !important;
+  border-radius: 50px !important;
+  border: none !important;
+  box-shadow: 0 4px 15px rgba(21, 101, 192, 0.2);
+  transition: all 0.3s ease-in-out !important;
+}
+
+.login-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(21, 101, 192, 0.25);
+  background: linear-gradient(135deg, #1976d2, #64b5f6) !important;
+}
