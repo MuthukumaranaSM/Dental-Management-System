@@ -1,39 +1,30 @@
 import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ConfigModule } from '@nestjs/config';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
-import { UserModule } from './user/user.module';
-import { TokenModule } from './token/token.module';
-import { AppointmentController } from './appointment/appointment.controller';
-import { AppointmentService } from './appointment/appointment.service';
+import databaseConfig from './config/database.config';
+import { PrismaService } from './prisma/prisma.service';
 import { AppointmentModule } from './appointment/appointment.module';
+import { PrescriptionModule } from './prescription/prescription.module';
+import { AdminModule } from './admin/admin.module';
+import { NotificationModule } from './notification/notification.module';
+import { PatientsModule } from './patients/patients.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-    }),
-    TypeOrmModule.forRootAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        type: 'mysql',
-        host: configService.get('DB_HOST', 'localhost'),
-        port: +configService.get('DB_PORT', 3306),
-        username: configService.get('DB_USERNAME', 'root'),
-        password: configService.get('DB_PASSWORD', 'root1'),
-        database: configService.get('DB_DATABASE', 'dental_management'),
-        entities: [__dirname + '/*/.entity{.ts,.js}'],
-        synchronize: configService.get('DB_SYNCHRONIZE', true),
-        logging: configService.get('DB_LOGGING', false),
-      }),
+      load: [databaseConfig],
     }),
     AuthModule,
-    UserModule,
-    TokenModule,
     AppointmentModule,
+    AdminModule,
+    PrescriptionModule,
+    NotificationModule,
+    PatientsModule,
   ],
-  controllers: [AppointmentController],
-  providers: [AppointmentService],
+  controllers: [AppController],
+  providers: [AppService, PrismaService],
 })
 export class AppModule {}

@@ -1,44 +1,36 @@
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
-import * as dotenv from 'dotenv';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
-import * as cookieParser from 'cookie-parser';
-
-dotenv.config();
+import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // Enable cookie-parser middleware
-  app.use(cookieParser());
+  // Enable validation pipe with transformation
+  app.useGlobalPipes(new ValidationPipe({
+    transform: true,
+    transformOptions: {
+      enableImplicitConversion: true,
+    },
+  }));
 
-  // Enable CORS with credentials support
+  // Enable CORS for frontend
   app.enableCors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173', // Adjust to your frontend URL
-    credentials: true,
+    origin: ['http://localhost:5173', 'http://localhost:5174'],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
   });
 
-  // Global validation pipe
-  app.useGlobalPipes(new ValidationPipe({ transform: true }));
-
-  // Swagger setup
   const config = new DocumentBuilder()
-    .setTitle('Dental Management System API')
-    .setDescription('The Dental Management System API documentation')
+    .setTitle('Dental Management API')
+    .setDescription('The Dental Management API description')
     .setVersion('1.0')
     .addBearerAuth()
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document);
+  SwaggerModule.setup('api', app, document);
 
-  const PORT = process.env.PORT || 3000;
-  await app.listen(PORT);
-  console.log(`Server running on http://localhost:${PORT}`);
-  console.log(`API Documentation available at http://localhost:${PORT}/api/docs`);
+  await app.listen(process.env.PORT ?? 3000);
 }
-
 bootstrap();

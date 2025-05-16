@@ -7,75 +7,168 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role {
-  ADMIN
+enum RoleType {
+  MAIN_DOCTOR
   DENTIST
-  PATIENT
   RECEPTIONIST
+  CUSTOMER
 }
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+model Role {
+  id          Int      @id @default(autoincrement())
+  name        RoleType @unique
+  description String?
+  users       User[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 model User {
-  id           String        @id @default(uuid())
-  email        String        @unique
+  id           Int       @id @default(autoincrement())
+  email        String    @unique
   password     String
-  role         Role          @default(ADMIN) 
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  admin        Admin?        @relation("UserToAdmin")
-  dentist      Dentist?      @relation("UserToDentist")
-  patient      Patient?      @relation("UserToPatient")
-  receptionist Receptionist? @relation("UserToReceptionist")
-  tokens       Token[]
+  name         String
+  role         Role      @relation(fields: [roleId], references: [id])
+  roleId       Int
+  mainDoctor   MainDoctor?
+  dentist      Dentist?
+  receptionist Receptionist?
+  customer     Customer?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  customerAppointments Appointment[] @relation("CustomerAppointments")
+  dentistAppointments  Appointment[] @relation("DentistAppointments")
+  blockedSlots        BlockedSlot[] @relation("DentistBlockedSlots")
+  prescriptions       Prescription[]
+  notifications       Notification[]
+  googleTokens        Json? 
 }
 
-
-model Admin {
-  id        String   @id @default(uuid())
-  userId    String   @unique
-  firstName String?
-  lastName  String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  user      User     @relation("UserToAdmin", fields: [userId], references: [id])
+model MainDoctor {
+  id            Int      @id @default(autoincrement())
+  user          User     @relation(fields: [userId], references: [id])
+  userId        Int      @unique
+  specialization String
+  licenseNumber String   @unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
 model Dentist {
-  id            String   @id @default(uuid())
-  userId        String   @unique
-  firstName     String?
-  lastName      String?
-  licenseNumber String?  @unique
+  id            Int      @id @default(autoincrement())
+  user          User     @relation(fields: [userId], references: [id])
+  userId        Int      @unique
+  specialization String
+  licenseNumber String   @unique
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-  user          User     @relation("UserToDentist", fields: [userId], references: [id])
-}
-
-model Patient {
-  id        String   @id @default(uuid())
-  userId    String   @unique
-  firstName String?
-  lastName  String?
-  phone     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  user      User     @relation("UserToPatient", fields: [userId], references: [id])
 }
 
 model Receptionist {
-  id         String   @id @default(uuid())
-  userId     String   @unique
-  firstName  String?
-  lastName   String?
-  employeeId String?  @unique
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  user       User     @relation("UserToReceptionist", fields: [userId], references: [id])
+  id            Int      @id @default(autoincrement())
+  user          User     @relation(fields: [userId], references: [id])
+  userId        Int      @unique
+  shift         String   // e.g., "MORNING", "EVENING"
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
-model Token {
+model Customer {
+  id             Int       @id @default(autoincrement())
+  user           User      @relation(fields: [userId], references: [id])
+  userId         Int       @unique
+  dateOfBirth    DateTime?
+  address        String?
+  phoneNumber    String?
+  gender         String?
+  allergies      String?
+  medicalHistory String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model Appointment {
+  id             Int              @id @default(autoincrement())
+  appointmentDate DateTime
+  reason         String
+  notes          String?
+  status         AppointmentStatus @default(PENDING)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  // Relations
+  customer       User             @relation("CustomerAppointments", fields: [customerId], references: [id])
+  customerId     Int
+  dentist        User             @relation("DentistAppointments", fields: [dentistId], references: [id])
+  dentistId      Int
+  bill           Bill?
+  notifications  Notification[]
+
+  @@index([customerId])
+  @@index([dentistId])
+}
+
+model BlockedSlot {
   id        String   @id @default(uuid())
-  token     String   @db.Text
-  userId    String
-  expiredAt DateTime
+  date      DateTime
+  startTime String
+  endTime   String
+  reason    String?
+  dentist   User     @relation("DentistBlockedSlots", fields: [dentistId], references: [id])
+  dentistId Int
   createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id])
+  updatedAt DateTime @updatedAt
+
+  @@index([dentistId])
+}
+
+model Prescription {
+  id           Int      @id @default(autoincrement())
+  medication   String
+  dosage       String
+  instructions String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  patient      User     @relation(fields: [patientId], references: [id])
+  patientId    Int
+
+  @@map("prescriptions")
+}
+
+model Bill {
+  id                  Int       @id @default(autoincrement())
+  appointment         Appointment @relation(fields: [appointmentId], references: [id])
+  appointmentId       Int       @unique
+  amount             Float
+  serviceDescription String
+  additionalNotes    String?
+  status             String    @default("PAID")
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([appointmentId])
+}
+
+model Notification {
+  id          Int      @id @default(autoincrement())
+  title       String
+  message     String
+  type        String   // e.g., "APPOINTMENT_CONFIRMED", "APPOINTMENT_CANCELLED"
+  isRead      Boolean  @default(false)
+  user        User     @relation(fields: [userId], references: [id])
+  userId      Int
+  appointment Appointment? @relation(fields: [appointmentId], references: [id])
+  appointmentId Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([appointmentId])
 }

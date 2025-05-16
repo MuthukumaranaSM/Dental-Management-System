@@ -1,191 +1,142 @@
-import {
-    BadRequestException,
-    Body,
-    Controller,
-    Post,
-    Req,
-    Res,
-    UnauthorizedException,
-    Logger,
-    HttpCode,
-    HttpStatus,
-  } from '@nestjs/common';
-  import { AuthService } from './auth.service';
-  import { LoginDto, SignupDto, LoginResponseDto, SignupResponseDto, RefreshTokenDto, RefreshTokenResponseDto, LogoutResponseDto } from './dtos/auth.dto';
-  import { ApiBody, ApiResponse, ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-  import { Request, Response } from 'express';
-  import { Public } from '../common/constants/decorators/public.decorator';
-  
-  @ApiTags('auth')
-  @Controller('auth')
-  @ApiBearerAuth()
-  export class AuthController {
-    private readonly logger = new Logger(AuthController.name);
-  
-    constructor(private authService: AuthService) {}
-  
-    @Public()
-    @Post('signup')
-    @HttpCode(HttpStatus.CREATED)
-    @ApiOperation({ summary: 'Register a new user' })
-    @ApiBody({ type: SignupDto })
-    @ApiResponse({ status: 201, description: 'User successfully created', type: SignupResponseDto })
-    @ApiResponse({ status: 400, description: 'Bad request - email already exists' })
-    async signup(@Body() signupDto: SignupDto): Promise<SignupResponseDto> {
-      const user = await this.authService.signup(signupDto);
-      this.logger.log(`User signed up: ${user.email}`);
-      return { message: 'User created successfully', userId: user.id };
-    }
-  
-    @Public()
-    @Post('login')
-    @HttpCode(HttpStatus.OK)
-    @ApiOperation({ summary: 'Login with email and password' })
-    @ApiBody({ type: LoginDto })
-    @ApiResponse({ status: 200, description: 'Successfully logged in', type: LoginResponseDto })
-    @ApiResponse({ status: 401, description: 'Invalid credentials' })
-    async login(
-      @Body() loginDto: LoginDto,
-      @Res({ passthrough: true }) response: Response,
-    ): Promise<LoginResponseDto> {
-      const { accessToken, refreshToken, userId } = await this.authService.login(loginDto);
-  
-      response.cookie('accessToken', accessToken, {
-        maxAge: Number(process.env.BROWSER_COOKIE_ACCESS_EXPIRES_IN) || 3600000,
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-        secure: process.env.NODE_ENV === 'production',
-        httpOnly: true,
-      });
-  
-      response.cookie('refreshToken', refreshToken, {
-        maxAge: Number(process.env.BROWSER_COOKIE_REFRESH_EXPIRES_IN) || 604800000,
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-        secure: process.env.NODE_ENV === 'production',
-        httpOnly: true,
-      });
-  
-      this.logger.log(`User logged in: ${loginDto.email}`);
-      return { data: { token: accessToken, refreshToken, userId } };
-    }
-  
-    @Public()
-    @Post('refresh')
-    @HttpCode(HttpStatus.OK)
-    @ApiOperation({ summary: 'Refresh access token using refresh token' })
-    @ApiBody({ type: RefreshTokenDto })
-    @ApiResponse({ status: 200, description: 'New tokens generated successfully', type: RefreshTokenResponseDto })
-    @ApiResponse({ status: 401, description: 'Invalid or expired refresh token' })
-    async refresh(
-      @Req() request: Request,
-      @Body() body: RefreshTokenDto,
-      @Res({ passthrough: true }) response: Response,
-    ): Promise<RefreshTokenResponseDto> {
-      try {
-        let refreshToken = body.refreshToken;
-  
-        if (!refreshToken && request.cookies?.refreshToken) {
-          refreshToken = request.cookies.refreshToken;
-        }
-  
-        if (!refreshToken && request.headers.authorization) {
-          const authHeader = request.headers.authorization;
-          if (authHeader.startsWith('Bearer ')) {
-            refreshToken = authHeader.substring(7);
-          }
-        }
-  
-        if (!refreshToken) {
-          throw new UnauthorizedException('No refresh token provided');
-        }
-  
-        const decoded = await this.authService.verifyRefreshToken(refreshToken);
-  
-        const { accessToken, refreshToken: newRefreshToken } = await this.authService.refreshTokens(
-          decoded.id,
-          decoded.email,
-          refreshToken,
-        );
-  
-        response.cookie('accessToken', accessToken, {
-          maxAge: Number(process.env.BROWSER_COOKIE_ACCESS_EXPIRES_IN) || 3600000,
-          sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-          secure: process.env.NODE_ENV === 'production',
-          httpOnly: true,
-        });
-  
-        response.cookie('refreshToken', newRefreshToken, {
-          maxAge: Number(process.env.BROWSER_COOKIE_REFRESH_EXPIRES_IN) || 604800000,
-          sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-          secure: process.env.NODE_ENV === 'production',
-          httpOnly: true,
-        });
-  
-        return { data: { token: accessToken, refreshToken: newRefreshToken } };
-      } catch (e) {
-        this.logger.error('Refresh token error:', e);
-        throw new UnauthorizedException('Invalid or expired refresh token');
-      }
-    }
-  
-    @Post('logout')
-    @HttpCode(HttpStatus.OK)
-    @ApiOperation({ summary: 'Logout user and invalidate refresh token' })
-    @ApiBody({ type: RefreshTokenDto })
-    @ApiResponse({ status: 200, description: 'Successfully logged out', type: LogoutResponseDto })
-    @ApiResponse({ status: 400, description: 'Bad request - no refresh token' })
-    async logout(
-      @Req() request: Request,
-      @Body() body: RefreshTokenDto,
-      @Res({ passthrough: true }) response: Response,
-    ): Promise<LogoutResponseDto> {
-      try {
-        let refreshToken = body.refreshToken;
-  
-        if (!refreshToken && request.cookies?.refreshToken) {
-          refreshToken = request.cookies.refreshToken;
-        }
-  
-        if (!refreshToken && request.headers.authorization) {
-          const authHeader = request.headers.authorization;
-          if (authHeader.startsWith('Bearer ')) {
-            refreshToken = authHeader.substring(7);
-          }
-        }
-  
-        if (!refreshToken) {
-          throw new BadRequestException('No refresh token found');
-        }
-  
-        const decoded = await this.authService.verifyRefreshToken(refreshToken);
-        await this.authService.logout(decoded.id, refreshToken);
-  
-        response.clearCookie('accessToken', {
-          sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-          secure: process.env.NODE_ENV === 'production',
-          httpOnly: true,
-        });
-  
-        response.clearCookie('refreshToken', {
-          sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-          secure: process.env.NODE_ENV === 'production',
-          httpOnly: true,
-        });
-  
-        this.logger.log('User logged out successfully');
-        return { message: 'Logged out successfully' };
-      } catch (error) {
-        this.logger.error('Logout error:', error);
-        response.clearCookie('accessToken', {
-          sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-          secure: process.env.NODE_ENV === 'production',
-          httpOnly: true,
-        });
-        response.clearCookie('refreshToken', {
-          sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-          secure: process.env.NODE_ENV === 'production',
-          httpOnly: true,
-        });
-        return { message: 'Logged out successfully' };
-      }
-    }
+import { Controller, Post, Body, Get, UseGuards, Request, Param } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
+import { AuthService } from './auth.service';
+import { SignupDto } from './dto/signup.dto';
+import { LoginDto } from './dto/login.dto';
+import { UserDto } from './dto/user.dto';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { RolesGuard } from './guards/roles.guard';
+import { Roles } from './decorators/roles.decorator';
+import { Role } from './enums/role.enum';
+import { CreateCustomerDto } from './dto/create-customer.dto';
+
+@ApiTags('Authentication')
+@Controller('auth')
+export class AuthController {
+  constructor(private readonly authService: AuthService) {}
+
+  @Post('signup')
+  @ApiOperation({ summary: 'Register a new user' })
+  @ApiBody({ type: SignupDto })
+  @ApiResponse({
+    status: 201,
+    description: 'User successfully registered',
+    schema: {
+      example: {
+        token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+        user: {
+          id: 1,
+          email: 'john.doe@example.com',
+          name: 'John Doe',
+          role: 'CUSTOMER',
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 409, description: 'Email already exists' })
+  async signup(@Body() signupDto: SignupDto) {
+    return this.authService.signup(
+      signupDto.email,
+      signupDto.password,
+      signupDto.name,
+      signupDto.role,
+    );
   }
+
+  @Post('login')
+  @ApiOperation({ summary: 'Login user' })
+  @ApiBody({ type: LoginDto })
+  @ApiResponse({
+    status: 200,
+    description: 'User successfully logged in',
+    schema: {
+      example: {
+        token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+        user: {
+          id: 1,
+          email: 'john.doe@example.com',
+          name: 'John Doe',
+          role: 'CUSTOMER',
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Invalid credentials' })
+  async login(@Body() loginDto: LoginDto) {
+    return this.authService.login(loginDto.email, loginDto.password);
+  }
+
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get current user details' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns the current user details',
+    type: UserDto,
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async getCurrentUser(@Request() req): Promise<UserDto> {
+    return this.authService.getUserDetails(req.user.userId);
+  }
+
+  @Get('users/dentists')
+  @ApiOperation({ summary: 'Get all dentists' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns all dentists',
+    type: [UserDto],
+  })
+  async getDentists() {
+    return this.authService.getDentists();
+  }
+
+  @Post('admin/create-user')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.MAIN_DOCTOR)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create a new user (Admin only)' })
+  @ApiBody({ type: SignupDto })
+  @ApiResponse({ status: 201, description: 'User successfully created' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
+  async createUser(@Body() signupDto: SignupDto) {
+    return this.authService.createUser(signupDto.email, signupDto.password, signupDto.name, signupDto.role);
+  }
+
+  @Get('users')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.MAIN_DOCTOR, Role.RECEPTIONIST)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all users (Admin and Receptionist)' })
+  @ApiResponse({ status: 200, description: 'Returns all users' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Admin or Receptionist access required' })
+  async getAllUsers() {
+    return this.authService.getAllUsers();
+  }
+
+  @Post('create-customer')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.RECEPTIONIST)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create a new customer' })
+  @ApiResponse({ status: 201, description: 'Customer created successfully' })
+  async createCustomer(@Body() createCustomerDto: CreateCustomerDto) {
+    return this.authService.createCustomer(createCustomerDto);
+  }
+
+  @Get('users/:id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get detailed user information by ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns the detailed user information',
+    type: UserDto,
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async getUserById(@Param('id') id: string): Promise<UserDto> {
+    return this.authService.getUserDetails(parseInt(id, 10));
+  }
+}

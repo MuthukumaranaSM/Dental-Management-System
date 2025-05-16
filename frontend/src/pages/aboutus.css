@@ -1,154 +1,158 @@
 .about-section {
-    padding: 120px 0;
-    position: relative;
-    overflow: hidden;
-    background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
-}
-
-.about-section::before,
-.about-section::after {
-    content: '';
-    position: absolute;
-    width: 600px;
-    height: 600px;
-    border-radius: 50%;
-    z-index: 0;
-}
-
-.about-section::before {
-    top: -200px;
-    right: -200px;
-    background: radial-gradient(circle, rgba(33, 150, 243, 0.05) 0%, rgba(33, 150, 243, 0) 80%);
-}
-
-.about-section::after {
-    bottom: -200px;
-    left: -200px;
-    background: radial-gradient(circle, rgba(3, 169, 244, 0.05) 0%, rgba(3, 169, 244, 0) 80%);
+  padding: 80px 0;
+  background-color: white;
 }
 
 .section-title {
-    font-size: clamp(2.5rem, 5vw, 3.5rem);
-    background: linear-gradient(135deg, #1565c0 0%, #00acc1 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    margin-bottom: 2rem;
-    font-weight: 800;
-    letter-spacing: 0.8px;
-    text-align: center;
-    position: relative;
+  text-align: center;
+  margin-bottom: 40px;
+  color: #1565c0;
+  font-weight: 700;
 }
 
-.section-title::after {
-    content: '';
-    position: absolute;
-    bottom: -12px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 80px;
-    height: 4px;
-    background: linear-gradient(90deg, #1565c0, #42a5f5);
-    border-radius: 10px;
+.section-subtitle {
+  text-align: center;
+  margin: 60px 0 30px;
+  color: #1565c0;
+  font-weight: 600;
 }
 
-.expert-card {
-    position: relative;
-    background: rgba(255, 255, 255, 0.8);
-    backdrop-filter: blur(20px);
-    border-radius: 30px;
-    overflow: hidden;
-    transition: all 0.5s ease;
-    border: 1px solid rgba(0, 0, 0, 0.05);
-    box-shadow: 0 15px 30px rgba(13, 71, 161, 0.1);
+.about-content {
+  max-width: 800px;
+  margin: 0 auto 40px;
+  text-align: center;
 }
 
-.expert-card:hover {
-    transform: translateY(-10px) scale(1.02);
-    box-shadow: 0 25px 50px rgba(13, 71, 161, 0.2);
+.about-text {
+  font-size: 1.1rem;
+  line-height: 1.8;
+  color: #37474f;
 }
 
-.expert-image-container {
-    position: relative;
-    height: 400px;
-    overflow: hidden;
-    border-top-left-radius: 30px;
-    border-top-right-radius: 30px;
+.team-grid {
+  margin-top: 40px;
 }
 
-.expert-image {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transition: transform 0.5s ease;
+.team-card {
+  height: 100%;
+  transition: transform 0.3s ease;
 }
 
-.expert-card:hover .expert-image {
-    transform: scale(1.1);
+.team-card:hover {
+  transform: translateY(-5px);
 }
 
-.expert-overlay {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0) 100%);
-    padding: 30px;
-    color: #fff;
-    transform: translateY(100%);
-    transition: transform 0.4s ease;
+.value-card {
+  height: 100%;
+  text-align: center;
+  padding: 20px;
+  transition: transform 0.3s ease;
 }
 
-.expert-card:hover .expert-overlay {
-    transform: translateY(0);
-}
-
-.expert-content {
-    padding: 2rem 1.5rem;
-    text-align: center;
-}
-
-.expert-name {
-    font-size: 1.6rem;
-    font-weight: 700;
-    color: #1565c0;
-    margin-bottom: 0.5rem;
-}
-
-.expert-role {
-    font-size: 1.2rem;
-    color: #546e7a;
-    margin-bottom: 0.5rem;
-}
-
-.expert-specialty {
-    font-size: 1rem;
-    color: #78909c;
-    font-style: italic;
-}
-
-.experience-badge {
-    position: absolute;
-    top: 15px;
-    right: 15px;
-    background: linear-gradient(135deg, #1565c0 0%, #42a5f5 100%);
-    color: white;
-    padding: 0.4rem 0.9rem;
-    border-radius: 50px;
-    font-size: 0.85rem;
-    font-weight: 600;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+.value-card:hover {
+  transform: translateY(-5px);
 }
 
 @media (max-width: 768px) {
-    .about-section {
-        padding: 80px 20px;
-    }
+  .about-section {
+    padding: 40px 0;
+  }
 
-    .expert-image-container {
-        height: 300px;
-    }
+  .section-title {
+    font-size: 2rem;
+    margin-bottom: 30px;
+  }
 
-    .section-title {
-        font-size: 2.2rem;
-    }
+  .section-subtitle {
+    font-size: 1.5rem;
+    margin: 40px 0 20px;
+  }
+
+  .about-text {
+    font-size: 1rem;
+  }
 }
+
+.expert-card {
+  width: 300px;
+  border-radius: 15px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease;
+}
+
+.expert-card:hover {
+  transform: translateY(-10px);
+}
+
+.expert-image-container {
+  position: relative;
+  height: 300px;
+  overflow: hidden;
+}
+
+.expert-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.expert-card:hover .expert-image {
+  transform: scale(1.1);
+}
+
+.expert-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(21, 101, 192, 0.9);
+  color: white;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.expert-card:hover .expert-overlay {
+  opacity: 1;
+}
+
+.experience-badge {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: #1565c0;
+  color: white;
+  padding: 8px 15px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.expert-content {
+  padding: 20px;
+  text-align: center;
+}
+
+.expert-name {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1565c0;
+  margin-bottom: 5px;
+}
+
+.expert-role {
+  font-size: 1.1rem;
+  color: #37474f;
+  margin-bottom: 5px;
+}
+
+.expert-specialty {
+  font-size: 0.9rem;
+  color: #666;
+} 
