@@ -8,6 +8,8 @@ import { BlockSlotDto } from './dto/block-slot.dto';
 import * as bcrypt from 'bcrypt';
 import { GenerateBillDto } from './dto/generate-bill.dto';
 import { NotificationService } from '../notification/notification.service';
+import { EmailService } from '../email/email.service';
+import { GoogleCalendarService } from '../google-calendar/google-calendar.service';
 
 type AllowedRole = Extract<Role, Role.MAIN_DOCTOR | Role.DENTIST | Role.RECEPTIONIST>;
 
@@ -16,6 +18,8 @@ export class AppointmentService {
   constructor(
     private prisma: PrismaService,
     private notificationService: NotificationService,
+    private emailService: EmailService,
+    private googleCalendarService: GoogleCalendarService,
   ) {}
 
   async create(createAppointmentDto: CreateAppointmentDto, userId: number) {
@@ -42,7 +46,9 @@ export class AppointmentService {
 
     if (!customer) {
       throw new NotFoundException('Customer not found');
-    }    // Check if the time slot is available
+    }
+
+    // Check if the time slot is available
     const appointmentDate = new Date(createAppointmentDto.appointmentDate);
     if (isNaN(appointmentDate.getTime())) {
       throw new BadRequestException('Invalid appointment date');
@@ -57,7 +63,9 @@ export class AppointmentService {
 
     if (!isSlotAvailable) {
       throw new BadRequestException('Selected time slot is not available');
-    }    // Create the appointment
+    }
+
+    // Create the appointment
     const appointment = await this.prisma.appointment.create({
       data: {
         customerId: customer.id,
@@ -72,6 +80,72 @@ export class AppointmentService {
         dentist: true,
       },
     });
+
+    try {
+      // Parse the appointment date and time
+      const appointmentDateTime = new Date(appointmentDate);
+      if (isNaN(appointmentDateTime.getTime())) {
+        throw new Error('Invalid appointment date');
+      }
+
+      // Parse start time
+      const startTimeParts = createAppointmentDto.startTime.split(':');
+      if (startTimeParts.length < 2) {
+        throw new Error('Invalid start time format. Expected HH:mm');
+      }
+
+      const startHours = parseInt(startTimeParts[0], 10);
+      const startMinutes = parseInt(startTimeParts[1], 10);
+
+      if (isNaN(startHours) || isNaN(startMinutes) || 
+          startHours < 0 || startHours > 23 || 
+          startMinutes < 0 || startMinutes > 59) {
+        throw new Error('Invalid start time values');
+      }
+
+      // Parse end time
+      const endTimeParts = createAppointmentDto.endTime.split(':');
+      if (endTimeParts.length < 2) {
+        throw new Error('Invalid end time format. Expected HH:mm');
+      }
+
+      const endHours = parseInt(endTimeParts[0], 10);
+      const endMinutes = parseInt(endTimeParts[1], 10);
+
+      if (isNaN(endHours) || isNaN(endMinutes) || 
+          endHours < 0 || endHours > 23 || 
+          endMinutes < 0 || endMinutes > 59) {
+        throw new Error('Invalid end time values');
+      }
+
+      // Create start and end date objects
+      const startDateTime = new Date(appointmentDateTime);
+      startDateTime.setHours(startHours, startMinutes, 0, 0);
+
+      const endDateTime = new Date(appointmentDateTime);
+      endDateTime.setHours(endHours, endMinutes, 0, 0);
+
+      // Validate that end time is after start time
+      if (endDateTime <= startDateTime) {
+        throw new Error('End time must be after start time');
+      }
+
+      // Send email notification with calendar link
+      await this.emailService.sendAppointmentConfirmation(
+        customer.email,
+        {
+          date: appointmentDateTime,
+          startTime: createAppointmentDto.startTime,
+          endTime: createAppointmentDto.endTime,
+          dentistName: dentist.name,
+          reason: createAppointmentDto.reason,
+          status: AppointmentStatus.PENDING,
+        }
+      );
+    } catch (error) {
+      console.error('Error in appointment creation:', error);
+      // Don't throw error here as we don't want to fail the appointment creation
+    }
 
     return appointment;
   }
@@ -443,7 +517,9 @@ export class AppointmentService {
   private async isSlotBlocked(date: Date, startTime: string, endTime: string) {
     const blockedSlot = await this.prisma.blockedSlot.findFirst({
       where: {
-        date,
+        date: {
+          equals: new Date(date.setHours(0, 0, 0, 0))
+        },
         OR: [
           {
             AND: [
@@ -483,6 +559,7 @@ export class AppointmentService {
     const endDateTime = new Date(appointmentDate);
     endDateTime.setHours(parseInt(endHour), parseInt(endMinute), 0, 0);
 
+    // Only check for CONFIRMED appointments
     const existingAppointment = await this.prisma.appointment.findFirst({
       where: {
         dentistId,
@@ -490,10 +567,11 @@ export class AppointmentService {
           gte: startDateTime,
           lt: endDateTime
         },
-        status: { not: AppointmentStatus.CANCELLED }
+        status: AppointmentStatus.CONFIRMED // Only check for CONFIRMED appointments
       }
     });
 
+    // If there's no CONFIRMED appointment, the slot is available
     return !existingAppointment;
   }
 }
