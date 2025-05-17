@@ -254,12 +254,17 @@ export class AuthService {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+    const verificationToken = this.generateVerificationToken();
+    const tokenExpires = new Date();
+    tokenExpires.setHours(tokenExpires.getHours() + 24); // Token expires in 24 hours
 
     const userData = {
       email,
       password: hashedPassword,
       name,
       roleId: roleEntity.id,
+      emailVerificationToken: verificationToken,
+      emailVerificationTokenExpires: tokenExpires,
     };
 
     // Add role-specific data
@@ -294,6 +299,15 @@ export class AuthService {
         receptionist: true,
       },
     });
+
+    // Send verification email
+    try {
+      await this.emailService.sendVerificationEmail(email, verificationToken);
+      console.log('Verification email sent successfully to:', email);
+    } catch (error) {
+      console.error('Failed to send verification email:', error);
+      // Don't throw here, as the user is already created
+    }
 
     return {
       id: user.id,
@@ -350,6 +364,11 @@ export class AuthService {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // Generate verification token
+    const verificationToken = this.generateVerificationToken();
+    const tokenExpires = new Date();
+    tokenExpires.setHours(tokenExpires.getHours() + 24); // Token expires in 24 hours
+
     // Create customer
     const customer = await this.prisma.user.create({
       data: {
@@ -357,6 +376,8 @@ export class AuthService {
         password: hashedPassword,
         name,
         roleId: customerRole.id,
+        emailVerificationToken: verificationToken,
+        emailVerificationTokenExpires: tokenExpires,
         customer: {
           create: {
             dateOfBirth: new Date(dateOfBirth),
@@ -370,6 +391,15 @@ export class AuthService {
         role: true,
       },
     });
+
+    // Send verification email
+    try {
+      await this.emailService.sendVerificationEmail(email, verificationToken);
+      console.log('Verification email sent successfully to:', email);
+    } catch (error) {
+      console.error('Failed to send verification email:', error);
+      // Don't throw here, as the user is already created
+    }
 
     // Remove password from response
     const { password: _, ...result } = customer;

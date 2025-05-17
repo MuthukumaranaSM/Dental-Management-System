@@ -49,7 +49,7 @@ const UserManagement: React.FC = () => {
     setLoading(true);
     try {
       await authApi.createUser(values);
-      message.success('User created successfully');
+      message.success('User created successfully. A verification email has been sent to their email address.');
       setIsModalVisible(false);
       form.resetFields();
       fetchUsers();
