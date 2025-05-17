@@ -49,7 +49,17 @@ export default function Login() {
         localStorage.removeItem('pendingAppointment');
         navigate('/appointments/new', { state: { appointmentData: JSON.parse(pendingAppointment) } });
       } else {
-        navigate('/dashboard');
+        if (response.user.role === 'CUSTOMER') {
+          navigate('/dashboard');
+        } else if (response.user.role === 'DENTIST') {
+          navigate('/dentist-dashboard');
+        } else if (response.user.role === 'RECEPTIONIST') {
+          navigate('/receptionist-dashboard');
+        } else if (response.user.role === 'MAIN_DOCTOR') {
+          navigate('/main-doctor-dashboard');
+        } else {
+          navigate('/unauthorized');
+        }
       }
     } catch (err) {
       setError('Invalid email or password');
