@@ -65,19 +65,39 @@ export class AppointmentService {
       throw new BadRequestException('Selected time slot is not available');
     }
 
-    // Create the appointment
+    // Create or find symptoms
+    const symptomOperations = createAppointmentDto.symptoms.map(symptomName => ({
+      symptom: {
+        connectOrCreate: {
+          where: { name: symptomName },
+          create: { name: symptomName }
+        }
+      }
+    }));
+
+    // Create the appointment with symptoms
     const appointment = await this.prisma.appointment.create({
       data: {
         customerId: customer.id,
         dentistId: createAppointmentDto.dentistId,
         appointmentDate: appointmentDate,
+        startTime: createAppointmentDto.startTime,
+        endTime: createAppointmentDto.endTime,
         reason: createAppointmentDto.reason,
         notes: createAppointmentDto.notes,
         status: AppointmentStatus.PENDING,
+        symptoms: {
+          create: symptomOperations
+        }
       },
       include: {
         customer: true,
         dentist: true,
+        symptoms: {
+          include: {
+            symptom: true
+          }
+        }
       },
     });
 
@@ -202,6 +222,58 @@ export class AppointmentService {
           appointment.id,
           updateAppointmentDto.status,
         );
+
+        // Get customer and dentist details for email
+        const customer = await this.prisma.user.findUnique({
+          where: { id: appointment.customerId },
+          select: { email: true, name: true }
+        });
+
+        const dentist = await this.prisma.user.findUnique({
+          where: { id: appointment.dentistId },
+          select: { name: true }
+        });
+
+        if (customer) {
+          try {
+            if (updateAppointmentDto.status === AppointmentStatus.CONFIRMED) {
+              // For confirmed appointments, send one email with calendar link
+              const calendarLink = this.googleCalendarService.generateGoogleCalendarLink({
+                title: `Dental Appointment with ${dentist?.name || 'Dentist'}`,
+                description: `Appointment for: ${appointment.reason}`,
+                startTime: appointment.appointmentDate,
+                endTime: new Date(appointment.appointmentDate.getTime() + 60 * 60 * 1000)
+              });
+
+              await this.emailService.sendAppointmentConfirmation(
+                customer.email,
+                {
+                  date: appointment.appointmentDate,
+                  startTime: appointment.startTime,
+                  endTime: appointment.endTime,
+                  dentistName: dentist?.name || 'Dentist',
+                  reason: appointment.reason,
+                  status: updateAppointmentDto.status
+                }
+              );
+            } else {
+              // For cancelled appointments, send status update email
+              await this.emailService.sendAppointmentStatusUpdate(
+                customer.email,
+                {
+                  customerName: customer.name,
+                  dentistName: dentist?.name || 'the dentist',
+                  appointmentDate: appointment.appointmentDate,
+                  status: updateAppointmentDto.status,
+                  reason: appointment.reason
+                }
+              );
+            }
+          } catch (emailError) {
+            console.error('Error sending email notification:', emailError);
+            // Don't throw error as we don't want to fail the appointment update
+          }
+        }
       }
     }
 
@@ -227,7 +299,15 @@ export class AppointmentService {
       where: { dentistId },
       include: {
         customer: true,
+        symptoms: {
+          include: {
+            symptom: true
+          }
+        }
       },
+      orderBy: {
+        appointmentDate: 'desc'
+      }
     });
   }
 
@@ -391,7 +471,13 @@ export class AppointmentService {
 
   async getReceptionistAppointments() {
     const appointments = await this.prisma.appointment.findMany({
-      include: {
+      select: {
+        id: true,
+        appointmentDate: true,
+        status: true,
+        reason: true,
+        notes: true,
+        createdAt: true,
         customer: {
           select: {
             name: true,

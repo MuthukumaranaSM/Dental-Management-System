@@ -42,12 +42,15 @@ import {
 import CreateCustomerModal from '../CreateCustomerModal';
 import { GenerateBillModal } from '../GenerateBillModal';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-hot-toast';
 
 interface Appointment {
   id: number;
   appointmentDate: string;
   status: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
   reason: string;
+  createdAt: string;
+  symptoms: string[];
   customer: {
     name: string;
     email: string;
@@ -229,6 +232,17 @@ export default function ReceptionistDashboard() {
     navigate(`/users/${userId}`);
   };
 
+  const handleCreateCustomer = async (data: CreateCustomerFormData) => {
+    try {
+      await createCustomer(data);
+      toast.success('Customer created successfully. A verification email has been sent to their email address.');
+      setShowCreateCustomerModal(false);
+      fetchCustomers();
+    } catch (error) {
+      toast.error('Failed to create customer');
+    }
+  };
+
   return (
     <Container maxWidth={false} sx={{ 
       ...dashboardStyles.container,
@@ -359,17 +373,20 @@ export default function ReceptionistDashboard() {
                   <TableHead>
                     <TableRow>
                       <TableCell>Date & Time</TableCell>
+                      <TableCell>Created At</TableCell>
                       <TableCell>Patient Name</TableCell>
                       <TableCell>Patient Email</TableCell>
                       <TableCell>Dentist</TableCell>
                       <TableCell>Reason</TableCell>
-                      <TableCell>Status</TableCell>                          <TableCell sx={dashboardStyles.tableCellActions}>Actions</TableCell>
+                      <TableCell>Symptoms</TableCell>
+                      <TableCell>Status</TableCell>
+                      <TableCell sx={dashboardStyles.tableCellActions}>Actions</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {filteredAppointments.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={7} align="center">No appointments found</TableCell>
+                        <TableCell colSpan={9} align="center">No appointments found</TableCell>
                       </TableRow>
                     ) : (
                       filteredAppointments.map((appointment) => (
@@ -377,10 +394,29 @@ export default function ReceptionistDashboard() {
                           <TableCell sx={dashboardStyles.tableCell}>
                             {format(new Date(appointment.appointmentDate), 'PPp')}
                           </TableCell>
+                          <TableCell sx={dashboardStyles.tableCell}>
+                            {format(new Date(appointment.createdAt), 'PPp')}
+                          </TableCell>
                           <TableCell sx={dashboardStyles.tableCell}>{appointment.customer.name}</TableCell>
                           <TableCell sx={dashboardStyles.tableCell}>{appointment.customer.email}</TableCell>
                           <TableCell sx={dashboardStyles.tableCell}>{appointment.dentist.name}</TableCell>
                           <TableCell sx={dashboardStyles.tableCell}>{appointment.reason}</TableCell>
+                          <TableCell sx={dashboardStyles.tableCell}>
+                            {appointment.symptoms?.length > 0 ? (
+                              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                {appointment.symptoms.map((symptom, index) => (
+                                  <Chip
+                                    key={index}
+                                    label={symptom}
+                                    size="small"
+                                    sx={{ m: 0.5 }}
+                                  />
+                                ))}
+                              </Box>
+                            ) : (
+                              'No symptoms reported'
+                            )}
+                          </TableCell>
                           <TableCell sx={dashboardStyles.tableCell}>{getStatusChip(appointment.status)}</TableCell>
                           <TableCell sx={dashboardStyles.tableCellActions}>
                             <Box sx={dashboardStyles.actionsContainer}>

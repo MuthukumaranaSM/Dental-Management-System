@@ -48,6 +48,7 @@ interface Appointment {
   appointmentDate: string;
   status: string;
   reason: string;
+  createdAt: string;
   dentist: {
     name: string;
   };
@@ -416,6 +417,10 @@ const CustomerDashboard = () => {
                           <br />
                           <Typography component="span" variant="body2" color="text.secondary">
                             Doctor: {appointment.dentist.name}
+                          </Typography>
+                          <br />
+                          <Typography component="span" variant="body2" color="text.secondary">
+                            Created: {format(new Date(appointment.createdAt), 'PPp')}
                           </Typography>
                         </>
                       }

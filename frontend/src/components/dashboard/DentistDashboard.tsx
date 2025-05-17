@@ -59,6 +59,13 @@ interface Appointment {
   appointmentDate: string;
   status: string;
   reason: string;
+  createdAt: string;
+  symptoms: {
+    symptom: {
+      id: number;
+      name: string;
+    }
+  }[];
   customer: {
     id: number;
     name: string;
@@ -727,7 +734,9 @@ const DentistDashboard = () => {
                   <TableCell>Time</TableCell>
                   <TableCell>Patient</TableCell>
                   <TableCell>Contact</TableCell>
+                  <TableCell>Created At</TableCell>
                   <TableCell>Reason</TableCell>
+                  <TableCell>Symptoms</TableCell>
                   <TableCell>Status</TableCell>
                   <TableCell align="right">Actions</TableCell>
                 </TableRow>
@@ -735,7 +744,7 @@ const DentistDashboard = () => {
               <TableBody>
                 {appointments.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} align="center">No appointments found</TableCell>
+                    <TableCell colSpan={8} align="center">No appointments found</TableCell>
                   </TableRow>
                 ) : (
                   appointments.map((appointment) => (
@@ -745,7 +754,26 @@ const DentistDashboard = () => {
                       </TableCell>
                       <TableCell>{appointment.customer.name}</TableCell>
                       <TableCell>{appointment.customer.email}</TableCell>
+                      <TableCell>
+                        {format(new Date(appointment.createdAt), 'PPp')}
+                      </TableCell>
                       <TableCell>{appointment.reason}</TableCell>
+                      <TableCell>
+                        {appointment.symptoms && appointment.symptoms.length > 0 ? (
+                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                            {appointment.symptoms.map(({ symptom }, index) => (
+                              <Chip
+                                key={index}
+                                label={symptom.name}
+                                size="small"
+                                sx={{ m: 0.5 }}
+                              />
+                            ))}
+                          </Box>
+                        ) : (
+                          'No symptoms reported'
+                        )}
+                      </TableCell>
                       <TableCell>{getStatusChip(appointment.status)}</TableCell>
                       <TableCell align="right">
                         {getStatusActions(appointment)}

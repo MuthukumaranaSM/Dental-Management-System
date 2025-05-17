@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsDate, IsNumber, IsString } from 'class-validator';
+import { IsDate, IsNumber, IsString, IsArray } from 'class-validator';
 
 export class CreateAppointmentDto {
   @ApiProperty({ description: 'Dentist ID' })
@@ -25,4 +25,9 @@ export class CreateAppointmentDto {
   @ApiProperty({ description: 'Additional notes', required: false })
   @IsString()
   notes?: string;
+
+  @ApiProperty({ description: 'Selected symptoms', type: [String] })
+  @IsArray()
+  @IsString({ each: true })
+  symptoms: string[];
 } 

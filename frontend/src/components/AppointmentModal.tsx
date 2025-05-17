@@ -14,6 +14,10 @@ import {
   InputLabel,
   Select,
   Tooltip,
+  FormGroup,
+  FormControlLabel,
+  Checkbox,
+  Alert,
 } from '@mui/material';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider, DateCalendar } from '@mui/x-date-pickers';
@@ -62,6 +66,19 @@ const timeSlots = [
   '04:00 PM', '04:30 PM', '05:00 PM'
 ];
 
+const SYMPTOMS = [
+  'Toothache',
+  'Tooth Decay (Dental Caries)',
+  'Wisdom Tooth',
+  'Pain',
+  'Tooth Sensitivity',
+  'Bleeding Gums',
+  'Swollen or Infected Gums',
+  'Broken/Cracked Tooth',
+  'Bad Breath (Halitosis)',
+  'Loose or Missing Tooth'
+];
+
 const AppointmentModal: React.FC<AppointmentModalProps> = ({ open, onClose, dentistId: defaultDentistId }) => {
   const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
@@ -76,6 +93,7 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ open, onClose, dent
   const [blockedSlots, setBlockedSlots] = useState<BlockedSlot[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
 
   useEffect(() => {
     if (open) {
@@ -237,7 +255,8 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ open, onClose, dent
         startTime: selectedTime,
         endTime: endTime,
         reason: 'Dental Checkup',
-        notes: notes || ''
+        notes: notes || '',
+        symptoms: selectedSymptoms
       });
 
       onClose();
@@ -246,6 +265,14 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ open, onClose, dent
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSymptomChange = (symptom: string) => {
+    setSelectedSymptoms(prev => 
+      prev.includes(symptom)
+        ? prev.filter(s => s !== symptom)
+        : [...prev, symptom]
+    );
   };
 
   return (
@@ -417,6 +444,29 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ open, onClose, dent
                 </Box>
               )}
             </Box>
+          </Grid>
+
+          {/* Symptoms Section */}
+          <Grid item xs={12}>
+            <Typography variant="subtitle1" sx={{ mt: 2, mb: 1 }}>
+              Select Symptoms (if any)
+            </Typography>
+            <FormControl component="fieldset" sx={{ width: '100%' }}>
+              <FormGroup>
+                {SYMPTOMS.map((symptom) => (
+                  <FormControlLabel
+                    key={symptom}
+                    control={
+                      <Checkbox
+                        checked={selectedSymptoms.includes(symptom)}
+                        onChange={() => handleSymptomChange(symptom)}
+                      />
+                    }
+                    label={symptom}
+                  />
+                ))}
+              </FormGroup>
+            </FormControl>
           </Grid>
 
           {/* Notes */}

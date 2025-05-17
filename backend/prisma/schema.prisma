@@ -102,6 +102,8 @@ model Customer {
 model Appointment {
   id             Int              @id @default(autoincrement())
   appointmentDate DateTime
+  startTime      String
+  endTime        String
   reason         String
   notes          String?
   status         AppointmentStatus @default(PENDING)
@@ -115,6 +117,7 @@ model Appointment {
   dentistId      Int
   bill           Bill?
   notifications  Notification[]
+  symptoms       AppointmentSymptom[]
 
   @@index([customerId])
   @@index([dentistId])
@@ -176,4 +179,23 @@ model Notification {
 
   @@index([userId])
   @@index([appointmentId])
+}
+
+model Symptom {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  appointments AppointmentSymptom[]
+}
+
+model AppointmentSymptom {
+  appointment   Appointment @relation(fields: [appointmentId], references: [id])
+  appointmentId Int
+  symptom      Symptom     @relation(fields: [symptomId], references: [id])
+  symptomId    Int
+
+  @@id([appointmentId, symptomId])
+  @@index([appointmentId])
+  @@index([symptomId])
 }

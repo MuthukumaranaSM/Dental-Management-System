@@ -117,13 +117,16 @@ export class EmailService {
       const endDateTime = new Date(date);
       endDateTime.setHours(endHours, endMinutes, 0, 0);
 
-      // Generate Google Calendar link
-      const calendarLink = this.googleCalendarService.generateGoogleCalendarLink({
-        title: `Dental Appointment with Dr. ${dentistName}`,
-        description: `Appointment for: ${reason}`,
-        startTime: startDateTime,
-        endTime: endDateTime,
-      });
+      let calendarLink = '';
+      if (status === 'CONFIRMED') {
+        // Generate Google Calendar link only for confirmed appointments
+        calendarLink = this.googleCalendarService.generateGoogleCalendarLink({
+          title: `Dental Appointment with Dr. ${dentistName}`,
+          description: `Appointment for: ${reason}`,
+          startTime: startDateTime,
+          endTime: endDateTime,
+        });
+      }
       
       const html = `
         <h2>Appointment Details</h2>
@@ -132,11 +135,13 @@ export class EmailService {
         <p><strong>Dentist:</strong> ${dentistName}</p>
         <p><strong>Reason:</strong> ${reason}</p>
         <p><strong>Status:</strong> ${status}</p>
-        <br>
-        <p>Add this appointment to your Google Calendar:</p>
-        <a href="${calendarLink}" style="background-color: #4285f4; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
-          Add to Google Calendar
-        </a>
+        ${status === 'CONFIRMED' ? `
+          <br>
+          <p>Add this appointment to your Google Calendar:</p>
+          <a href="${calendarLink}" style="background-color: #4285f4; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
+            Add to Google Calendar
+          </a>
+        ` : ''}
       `;
 
       await this.transporter.sendMail({
@@ -164,5 +169,47 @@ export class EmailService {
         html,
       });
     }
+  }
+
+  async sendAppointmentStatusUpdate(
+    to: string,
+    appointmentDetails: {
+      customerName: string;
+      dentistName: string;
+      appointmentDate: Date;
+      status: string;
+      reason: string;
+    },
+  ) {
+    const { customerName, dentistName, appointmentDate, status, reason } = appointmentDetails;
+    
+    const formattedDate = new Date(appointmentDate).toLocaleDateString();
+    const subject = `Appointment ${status} - ${formattedDate}`;
+
+    const html = `
+      <h2>Appointment Status Update</h2>
+      <p>Dear ${customerName},</p>
+      <p>Your appointment with ${dentistName} has been <strong>${status.toLowerCase()}</strong>.</p>
+      <br>
+      <h3>Appointment Details:</h3>
+      <p><strong>Date:</strong> ${formattedDate}</p>
+      <p><strong>Dentist:</strong> ${dentistName}</p>
+      <p><strong>Reason:</strong> ${reason}</p>
+      <p><strong>Status:</strong> ${status}</p>
+      ${status === 'CONFIRMED' ? `
+        <br>
+        <p>Your appointment has been confirmed. Please arrive 10 minutes before your scheduled time.</p>
+      ` : status === 'CANCELLED' ? `
+        <br>
+        <p>Your appointment has been cancelled. Please contact the clinic if you need to reschedule.</p>
+      ` : ''}
+    `;
+
+    await this.transporter.sendMail({
+      from: this.configService.get('EMAIL_USER'),
+      to,
+      subject,
+      html,
+    });
   }
 }
