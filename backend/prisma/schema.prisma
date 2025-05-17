@@ -37,6 +37,11 @@ model User {
   name         String
   role         Role      @relation(fields: [roleId], references: [id])
   roleId       Int
+  isEmailVerified Boolean @default(false)
+  emailVerificationToken String?
+  emailVerificationTokenExpires DateTime?
+  passwordResetToken String?
+  passwordResetTokenExpires DateTime?
   mainDoctor   MainDoctor?
   dentist      Dentist?
   receptionist Receptionist?

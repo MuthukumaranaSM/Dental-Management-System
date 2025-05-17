@@ -47,6 +47,18 @@ export const authApi = {
     const response = await axios.post(`${API_URL}/auth/signup`, data);
     return response.data;
   },
+  verifyEmail: async (token: string) => {
+    const response = await axios.get(`${API_URL}/auth/verify-email?token=${token}`);
+    return response.data;
+  },
+  requestPasswordReset: async (email: string) => {
+    const response = await axios.post(`${API_URL}/auth/forgot-password`, { email });
+    return response.data;
+  },
+  resetPassword: async (token: string, newPassword: string) => {
+    const response = await axios.post(`${API_URL}/auth/reset-password`, { token, newPassword });
+    return response.data;
+  },
   createUser: async (data: CreateUserData) => {
     const response = await axios.post(`${API_URL}/auth/admin/create-user`, data);
     return response.data;

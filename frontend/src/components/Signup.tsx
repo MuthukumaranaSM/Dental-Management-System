@@ -17,6 +17,7 @@ export default function Signup() {
   const location = useLocation();
   const { login } = useAuth();
   const [error, setError] = useState('');
+  const [showVerificationMessage, setShowVerificationMessage] = useState(false);
   const [formData, setFormData] = useState<SignupData>({
     name: '',
     email: '',
@@ -50,12 +51,44 @@ export default function Signup() {
         password: formData.password,
         role: formData.role
       });
-      login(response.token, response.user);
-      navigate('/dashboard');
+      
+      // Show verification message instead of logging in immediately
+      setShowVerificationMessage(true);
+      
+      // Store the token and user data for later use after verification
+      localStorage.setItem('pendingAuth', JSON.stringify(response));
+      
     } catch (err) {
       setError('Failed to create account');
     }
   };
+
+  if (showVerificationMessage) {
+    return (
+      <Container component="main" maxWidth="xs">
+        <Box
+          sx={{
+            marginTop: 8,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+          }}
+        >
+          <Alert severity="info" sx={{ mt: 2, width: '100%' }}>
+            <Typography variant="h6" gutterBottom>
+              Please verify your email
+            </Typography>
+            <Typography>
+              We've sent a verification link to {formData.email}. Please check your email and click the link to verify your account.
+            </Typography>
+            <Typography sx={{ mt: 2 }}>
+              After verifying your email, you can <Link component={RouterLink} to="/login">log in</Link> to your account.
+            </Typography>
+          </Alert>
+        </Box>
+      </Container>
+    );
+  }
 
   return (
     <Container component="main" maxWidth="xs">
@@ -123,7 +156,7 @@ export default function Signup() {
             value={formData.confirmPassword}
             onChange={handleChange}
           />
-          <FormControl fullWidth margin="normal" required>
+          <FormControl fullWidth margin="normal">
             <InputLabel id="role-label">Role</InputLabel>
             <Select
               labelId="role-label"

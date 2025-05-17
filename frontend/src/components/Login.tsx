@@ -1,17 +1,26 @@
 import React, { useState } from 'react';
-import { useNavigate, Link as RouterLink } from 'react-router-dom';
-import { TextField, Button, Typography, Container, Box, Link } from '@mui/material';
+import { useNavigate, Link as RouterLink, useLocation } from 'react-router-dom';
+import { TextField, Button, Typography, Container, Box, Link, Alert } from '@mui/material';
 import { useAuth } from '../context/AuthContext';
-import { authApi, LoginData } from '../services/api';
+import { authApi } from '../services/api';
+
+interface LoginData {
+  email: string;
+  password: string;
+}
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
   const [error, setError] = useState('');
   const [formData, setFormData] = useState<LoginData>({
     email: '',
     password: '',
   });
+  const [loading, setLoading] = useState(false);
+
+  const isFromAppointment = location.state?.from === 'appointment';
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -21,30 +30,31 @@ export default function Login() {
     }));
   };
 
-  const getDashboardPath = (role: string) => {
-    switch (role) {
-      case 'CUSTOMER':
-        return '/dashboard';
-      case 'DENTIST':
-        return '/dentist-dashboard';
-      case 'RECEPTIONIST':
-        return '/receptionist-dashboard';
-      case 'MAIN_DOCTOR':
-        return '/main-doctor-dashboard';
-      default:
-        return '/dashboard';
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      setLoading(true);
       const response = await authApi.login(formData);
+      
+      if (!response.user.isEmailVerified) {
+        setError('Please verify your email before logging in. Check your inbox for the verification link.');
+        return;
+      }
+
       login(response.token, response.user);
-      const dashboardPath = getDashboardPath(response.user.role);
-      navigate(dashboardPath);
+      
+      // Check if there's a pending appointment
+      const pendingAppointment = localStorage.getItem('pendingAppointment');
+      if (pendingAppointment) {
+        localStorage.removeItem('pendingAppointment');
+        navigate('/appointments/new', { state: { appointmentData: JSON.parse(pendingAppointment) } });
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err) {
       setError('Invalid email or password');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -61,6 +71,11 @@ export default function Login() {
         <Typography component="h1" variant="h5">
           Sign in
         </Typography>
+        {isFromAppointment && (
+          <Alert severity="info" sx={{ mt: 2, width: '100%' }}>
+            To book an appointment, you need to sign in first.
+          </Alert>
+        )}
         <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
           <TextField
             margin="normal"
@@ -87,22 +102,28 @@ export default function Login() {
             onChange={handleChange}
           />
           {error && (
-            <Typography color="error" sx={{ mt: 2 }}>
+            <Alert severity="error" sx={{ mt: 2 }}>
               {error}
-            </Typography>
+            </Alert>
           )}
           <Button
             type="submit"
             fullWidth
             variant="contained"
             sx={{ mt: 3, mb: 2 }}
+            disabled={loading}
           >
-            Sign In
+            {loading ? 'Signing in...' : 'Sign In'}
           </Button>
           <Box sx={{ textAlign: 'center' }}>
-            {/* <Link component={RouterLink} to="/signup" variant="body2">
-              {"Don't have an CUSTOMER account? Sign up "}
-            </Link> */}
+            <Link component={RouterLink} to="/signup" variant="body2">
+              {"Don't have an account? Sign Up"}
+            </Link>
+          </Box>
+          <Box sx={{ textAlign: 'center', mt: 1 }}>
+            <Link component={RouterLink} to="/forgot-password" variant="body2">
+              Forgot password?
+            </Link>
           </Box>
         </Box>
       </Box>

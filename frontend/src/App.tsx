@@ -14,6 +14,9 @@ import Unauthorized from './components/Unauthorized';
 import { AuthProvider } from './context/AuthContext';
 import PatientProfile from './components/patients/PatientProfile';
 import UserDetails from './pages/UserDetails';
+import EmailVerification from './components/EmailVerification';
+import ForgotPassword from './components/ForgotPassword';
+import ResetPassword from './components/ResetPassword';
 
 const theme = createTheme({
   palette: {
@@ -43,6 +46,8 @@ function App() {
                 <Route path="/" element={<Home />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<Signup />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/unauthorized" element={<Unauthorized />} />
                 
                 {/* Protected Routes */}
@@ -84,6 +89,7 @@ function App() {
 
                 <Route path="/patients/:patientId" element={<PatientProfile />} />
                 <Route path="/users/:id" element={<UserDetails />} />
+                <Route path="/verify-email" element={<EmailVerification />} />
               </Routes>
             </Box>
           </Box>
