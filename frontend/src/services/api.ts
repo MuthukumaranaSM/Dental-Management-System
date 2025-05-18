@@ -212,3 +212,15 @@ export const patientApi = {
     }
   },
 };
+
+export const reportApi = {
+  downloadMonthlyReport: async (dentistId: number, month: number, year: number) => {
+    const response = await axios.get(
+      `${API_URL}/reports/dentist/${dentistId}/monthly?month=${month}&year=${year}`,
+      {
+        responseType: 'blob',
+      }
+    );
+    return response.data;
+  },
+};

@@ -10,6 +10,7 @@ import { PrescriptionModule } from './prescription/prescription.module';
 import { AdminModule } from './admin/admin.module';
 import { NotificationModule } from './notification/notification.module';
 import { PatientsModule } from './patients/patients.module';
+import { ReportModule } from './report/report.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { PatientsModule } from './patients/patients.module';
     PrescriptionModule,
     NotificationModule,
     PatientsModule,
+    ReportModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService],

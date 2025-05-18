@@ -156,21 +156,6 @@ export default function Signup() {
             value={formData.confirmPassword}
             onChange={handleChange}
           />
-          <FormControl fullWidth margin="normal">
-            <InputLabel id="role-label">Role</InputLabel>
-            <Select
-              labelId="role-label"
-              id="role"
-              name="role"
-              value={formData.role}
-              label="Role"
-              onChange={handleChange}
-            >
-              <MenuItem value="CUSTOMER">Customer</MenuItem>
-              {/* <MenuItem value="DENTIST">Dentist</MenuItem>
-              <MenuItem value="RECEPTIONIST">Receptionist</MenuItem> */}
-            </Select>
-          </FormControl>
           {error && (
             <Typography color="error" sx={{ mt: 2 }}>
               {error}

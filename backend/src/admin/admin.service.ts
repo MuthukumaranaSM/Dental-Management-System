@@ -115,7 +115,49 @@ export class AdminService {
         where: { userId }
       });
 
-      // Delete all appointments where user is either customer or dentist
+      // Get all appointments where user is either customer or dentist
+      const appointments = await prisma.appointment.findMany({
+        where: {
+          OR: [
+            { customerId: userId },
+            { dentistId: userId }
+          ]
+        },
+        select: {
+          id: true
+        }
+      });
+
+      const appointmentIds = appointments.map(app => app.id);
+
+      // Delete appointment symptoms
+      await prisma.appointmentSymptom.deleteMany({
+        where: {
+          appointmentId: {
+            in: appointmentIds
+          }
+        }
+      });
+
+      // Delete bills
+      await prisma.bill.deleteMany({
+        where: {
+          appointmentId: {
+            in: appointmentIds
+          }
+        }
+      });
+
+      // Delete appointment notifications
+      await prisma.notification.deleteMany({
+        where: {
+          appointmentId: {
+            in: appointmentIds
+          }
+        }
+      });
+
+      // Now delete the appointments
       await prisma.appointment.deleteMany({
         where: {
           OR: [

@@ -202,8 +202,8 @@ const CustomerDashboard = () => {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>Medication</TableCell>
-                  <TableCell>Dosage</TableCell>
+                  <TableCell>Treatment</TableCell>
+                  <TableCell>Description</TableCell>
                   <TableCell>Instructions</TableCell>
                   <TableCell>Prescribed Date</TableCell>
                 </TableRow>

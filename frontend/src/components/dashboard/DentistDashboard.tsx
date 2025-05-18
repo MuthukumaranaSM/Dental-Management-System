@@ -34,7 +34,7 @@ import {
 } from '@mui/material';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider, DateCalendar } from '@mui/x-date-pickers';
-import { format, addDays, isSameDay } from 'date-fns';
+import { format, addDays, isSameDay, startOfMonth, endOfMonth } from 'date-fns';
 import {
   Event as EventIcon,
   Person as PersonIcon,
@@ -47,12 +47,14 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Search as SearchIcon,
+  Download as DownloadIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { dashboardStyles } from './DashboardStyles';
 import { appointmentApi, prescriptionApi } from '../../services/api';
 import { message } from 'antd';
 import { useNavigate } from 'react-router-dom';
+import { PDFDownloadLink, Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 
 interface Appointment {
   id: number;
@@ -98,6 +100,183 @@ const timeSlots = [
   '04:00 PM', '04:30 PM', '05:00 PM'
 ];
 
+// PDF Document Component
+const MonthlyReportPDF = ({ 
+  appointments, 
+  prescriptions, 
+  month, 
+  year 
+}: { 
+  appointments: Appointment[], 
+  prescriptions: Prescription[], 
+  month: string, 
+  year: number 
+}) => (
+  <Document>
+    <Page size="A4" style={styles.page} wrap>
+      {/* Clinic Header */}
+      <View style={styles.clinicHeader} fixed>
+        <Text style={styles.clinicName}>Beliaththa Dental Clinic</Text>
+      </View>
+      {/* Report Title */}
+      <View style={styles.header}>
+        <Text style={styles.title}>Monthly Dental Practice Report</Text>
+        <Text style={styles.date}>{month} {year}</Text>
+      </View>
+      {/* Divider */}
+      <View style={styles.divider} />
+      {/* Monthly Statistics */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Monthly Statistics</Text>
+        <Text>Total Appointments: {appointments.length}</Text>
+        <Text>Completed Appointments: {appointments.filter(a => a.status === 'COMPLETED').length}</Text>
+        <Text>Cancelled Appointments: {appointments.filter(a => a.status === 'CANCELLED').length}</Text>
+        <Text>Total Prescriptions: {prescriptions.length}</Text>
+        <Text>Total Patients: {new Set(appointments.map(a => a.customer.id)).size}</Text>
+      </View>
+      <View style={styles.divider} />
+      {/* Appointment Details */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Appointment Details</Text>
+        {appointments.length === 0 ? (
+          <Text>No appointments found for this month.</Text>
+        ) : appointments.map((appointment, index) => (
+          <View key={index} style={styles.detailBlock} wrap={false}>
+            <Text style={styles.detailLabel}>Patient:</Text> <Text style={styles.detailValue}>{appointment.customer.name}</Text>
+            <Text style={styles.detailLabel}>Date:</Text> <Text style={styles.detailValue}>{format(new Date(appointment.appointmentDate), 'MMM d, yyyy hh:mm a')}</Text>
+            <Text style={styles.detailLabel}>Status:</Text> <Text style={styles.detailValue}>{appointment.status}</Text>
+            <Text style={styles.detailLabel}>Reason:</Text> <Text style={styles.detailValue}>{appointment.reason}</Text>
+            {appointment.symptoms && appointment.symptoms.length > 0 && (
+              <Text style={styles.detailLabel}>Symptoms:</Text>
+            )}
+            {appointment.symptoms && appointment.symptoms.length > 0 && (
+              <Text style={styles.detailValue}>{appointment.symptoms.map(s => s.symptom.name).join(', ')}</Text>
+            )}
+            <View style={styles.detailDivider} />
+          </View>
+        ))}
+      </View>
+      <View style={styles.divider} />
+      {/* Prescription Details */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Prescription Details</Text>
+        {prescriptions.length === 0 ? (
+          <Text>No prescriptions found for this month.</Text>
+        ) : prescriptions.map((prescription, index) => (
+          <View key={index} style={styles.detailBlock} wrap={false}>
+            <Text style={styles.detailLabel}>Patient:</Text> <Text style={styles.detailValue}>{(() => { const appt = appointments.find(a => a.customer.id === prescription.patientId); return appt ? appt.customer.name : 'Unknown'; })()}</Text>
+            <Text style={styles.detailLabel}>Medication:</Text> <Text style={styles.detailValue}>{prescription.medication}</Text>
+            <Text style={styles.detailLabel}>Dosage:</Text> <Text style={styles.detailValue}>{prescription.dosage}</Text>
+            <Text style={styles.detailLabel}>Instructions:</Text> <Text style={styles.detailValue}>{prescription.instructions}</Text>
+            <Text style={styles.detailLabel}>Date:</Text> <Text style={styles.detailValue}>{format(new Date(prescription.createdAt), 'MMM d, yyyy')}</Text>
+            <View style={styles.detailDivider} />
+          </View>
+        ))}
+      </View>
+      {/* Footer */}
+      <View style={styles.footer} fixed>
+        <Text style={styles.footerText}>Beliaththa Dental Clinic | Page <Text render={({ pageNumber }) => `${pageNumber}`}/></Text>
+      </View>
+    </Page>
+  </Document>
+);
+
+// PDF Styles
+const styles = StyleSheet.create({
+  page: {
+    padding: 30,
+    fontFamily: 'Helvetica',
+    fontSize: 12,
+    backgroundColor: '#fff',
+  },
+  clinicHeader: {
+    marginBottom: 10,
+    paddingBottom: 5,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1565c0',
+    borderBottomStyle: 'solid',
+    alignItems: 'center',
+  },
+  clinicName: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1565c0',
+    textAlign: 'center',
+    letterSpacing: 1,
+  },
+  header: {
+    marginBottom: 10,
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 2,
+    textAlign: 'center',
+  },
+  date: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
+  },
+  divider: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+    borderBottomStyle: 'solid',
+    marginVertical: 8,
+  },
+  section: {
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginBottom: 6,
+    color: '#1565c0',
+  },
+  detailBlock: {
+    marginBottom: 8,
+    padding: 6,
+    backgroundColor: '#f9f9f9',
+    borderRadius: 4,
+  },
+  detailLabel: {
+    fontWeight: 'bold',
+    fontSize: 12,
+    color: '#333',
+    marginRight: 2,
+    display: 'inline',
+  },
+  detailValue: {
+    fontSize: 12,
+    color: '#222',
+    marginLeft: 2,
+    display: 'inline',
+  },
+  detailDivider: {
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#ddd',
+    borderBottomStyle: 'solid',
+    marginVertical: 4,
+  },
+  footer: {
+    position: 'absolute',
+    bottom: 20,
+    left: 30,
+    right: 30,
+    borderTopWidth: 1,
+    borderTopColor: '#1565c0',
+    borderTopStyle: 'solid',
+    paddingTop: 4,
+    alignItems: 'center',
+  },
+  footerText: {
+    fontSize: 10,
+    color: '#1565c0',
+    textAlign: 'center',
+  },
+});
+
 const DentistDashboard = () => {
   const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
@@ -120,6 +299,9 @@ const DentistDashboard = () => {
   });
   const [patientFilter, setPatientFilter] = useState<'all' | 'confirmed' | 'completed'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState(new Date());
+  const [openPatientDialog, setOpenPatientDialog] = useState(false);
+  const [selectedPatientDetails, setSelectedPatientDetails] = useState<Appointment | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -384,8 +566,9 @@ const DentistDashboard = () => {
     }
   };
 
-  const handlePatientClick = (patientId: number) => {
-    navigate(`/patients/${patientId}`);
+  const handlePatientClick = (appointment: Appointment) => {
+    setSelectedPatientDetails(appointment);
+    setOpenPatientDialog(true);
   };
 
   const renderPatientsTab = () => {
@@ -486,7 +669,7 @@ const DentistDashboard = () => {
                         <TableRow 
                           key={appointment.id} 
                           hover 
-                          onClick={() => handlePatientClick(appointment.customer.id)}
+                          onClick={() => handlePatientClick(appointment)}
                           sx={{ cursor: 'pointer' }}
                         >
                           <TableCell>{appointment.customer.name}</TableCell>
@@ -659,6 +842,46 @@ const DentistDashboard = () => {
     );
   };
 
+  const handleDownloadReport = () => {
+    const monthStart = startOfMonth(selectedMonth);
+    const monthEnd = endOfMonth(selectedMonth);
+    
+    const monthlyAppointments = appointments.filter(app => {
+      const appDate = new Date(app.appointmentDate);
+      return appDate >= monthStart && appDate <= monthEnd;
+    });
+
+    const monthlyPrescriptions = prescriptions.filter(pres => {
+      const presDate = new Date(pres.createdAt);
+      return presDate >= monthStart && presDate <= monthEnd;
+    });
+
+    return (
+      <PDFDownloadLink
+        document={
+          <MonthlyReportPDF
+            appointments={monthlyAppointments}
+            prescriptions={monthlyPrescriptions}
+            month={format(selectedMonth, 'MMMM')}
+            year={selectedMonth.getFullYear()}
+          />
+        }
+        fileName={`monthly-report-${format(selectedMonth, 'yyyy-MM')}.pdf`}
+      >
+        {({ loading }) => (
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<DownloadIcon />}
+            disabled={loading}
+          >
+            {loading ? 'Generating PDF...' : 'Download Monthly Report'}
+          </Button>
+        )}
+      </PDFDownloadLink>
+    );
+  };
+
   return (
     <Container maxWidth="lg" sx={{ mt: 14, mb: 4 }}>
       <Typography variant="h4" component="h1" gutterBottom>
@@ -703,6 +926,57 @@ const DentistDashboard = () => {
                 </Typography>
                 <Typography color="text.secondary">Completed Today</Typography>
               </Box>
+            </Box>
+          </Paper>
+        </Grid>
+        <Grid item xs={12} md={4}>
+          <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 2, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <DownloadIcon sx={{ fontSize: 40, color: 'info.main', mb: 1 }} />
+            <Typography variant="h6" component="div" sx={{ mb: 1 }}>
+              Monthly Report
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2, textAlign: 'center' }}>
+              Select a month and year to download a detailed PDF report of your appointments and prescriptions.
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 2, mb: 2, width: '100%', justifyContent: 'center' }}>
+              <FormControl size="small" sx={{ minWidth: 100 }}>
+                <InputLabel id="month-label">Month</InputLabel>
+                <Select
+                  labelId="month-label"
+                  value={selectedMonth.getMonth()}
+                  label="Month"
+                  onChange={e => {
+                    const newDate = new Date(selectedMonth);
+                    newDate.setMonth(Number(e.target.value));
+                    setSelectedMonth(newDate);
+                  }}
+                >
+                  {[...Array(12)].map((_, idx) => (
+                    <MenuItem key={idx} value={idx}>{format(new Date(2000, idx, 1), 'MMMM')}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <FormControl size="small" sx={{ minWidth: 100 }}>
+                <InputLabel id="year-label">Year</InputLabel>
+                <Select
+                  labelId="year-label"
+                  value={selectedMonth.getFullYear()}
+                  label="Year"
+                  onChange={e => {
+                    const newDate = new Date(selectedMonth);
+                    newDate.setFullYear(Number(e.target.value));
+                    setSelectedMonth(newDate);
+                  }}
+                >
+                  {[...Array(6)].map((_, idx) => {
+                    const year = new Date().getFullYear() - 2 + idx;
+                    return <MenuItem key={year} value={year}>{year}</MenuItem>;
+                  })}
+                </Select>
+              </FormControl>
+            </Box>
+            <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+              {handleDownloadReport()}
             </Box>
           </Paper>
         </Grid>
@@ -897,14 +1171,14 @@ const DentistDashboard = () => {
           <Box sx={{ mt: 2 }}>
             <TextField
               fullWidth
-              label="Medication"
+              label="Treatment"
               value={prescriptionForm.medication}
               onChange={(e) => setPrescriptionForm({ ...prescriptionForm, medication: e.target.value })}
               sx={{ mb: 2 }}
             />
             <TextField
               fullWidth
-              label="Dosage"
+              label="Description"
               value={prescriptionForm.dosage}
               onChange={(e) => setPrescriptionForm({ ...prescriptionForm, dosage: e.target.value })}
               sx={{ mb: 2 }}
@@ -924,6 +1198,151 @@ const DentistDashboard = () => {
           <Button onClick={handleAddPrescription} variant="contained" color="primary">
             Add
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Patient Details Dialog */}
+      <Dialog 
+        open={openPatientDialog} 
+        onClose={() => setOpenPatientDialog(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <PersonIcon color="primary" />
+            <Typography variant="h6">Patient Details</Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          {selectedPatientDetails && (
+            <Box sx={{ mt: 2 }}>
+              <Grid container spacing={3}>
+                {/* Patient Information */}
+                <Grid item xs={12}>
+                  <Paper sx={{ p: 2, mb: 2 }}>
+                    <Typography variant="h6" gutterBottom>Personal Information</Typography>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} md={6}>
+                        <Typography variant="body1">
+                          <strong>Name:</strong> {selectedPatientDetails.customer.name}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <Typography variant="body1">
+                          <strong>Email:</strong> {selectedPatientDetails.customer.email}
+                        </Typography>
+                      </Grid>
+                    </Grid>
+                  </Paper>
+                </Grid>
+
+                {/* Appointment Details */}
+                <Grid item xs={12}>
+                  <Paper sx={{ p: 2, mb: 2 }}>
+                    <Typography variant="h6" gutterBottom>Appointment Details</Typography>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} md={6}>
+                        <Typography variant="body1">
+                          <strong>Date:</strong> {format(new Date(selectedPatientDetails.appointmentDate), 'MMM d, yyyy hh:mm a')}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <Typography variant="body1">
+                          <strong>Status:</strong> {getStatusChip(selectedPatientDetails.status)}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={12}>
+                        <Typography variant="body1">
+                          <strong>Reason:</strong> {selectedPatientDetails.reason}
+                        </Typography>
+                      </Grid>
+                      {selectedPatientDetails.symptoms && selectedPatientDetails.symptoms.length > 0 && (
+                        <Grid item xs={12}>
+                          <Typography variant="body1" gutterBottom>
+                            <strong>Symptoms:</strong>
+                          </Typography>
+                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                            {selectedPatientDetails.symptoms.map(({ symptom }, index) => (
+                              <Chip
+                                key={index}
+                                label={symptom.name}
+                                size="small"
+                                color="primary"
+                                variant="outlined"
+                              />
+                            ))}
+                          </Box>
+                        </Grid>
+                      )}
+                    </Grid>
+                  </Paper>
+                </Grid>
+
+                {/* Prescriptions */}
+                <Grid item xs={12}>
+                  <Paper sx={{ p: 2 }}>
+                    <Typography variant="h6" gutterBottom>Prescriptions</Typography>
+                    {prescriptions.filter(p => p.patientId === selectedPatientDetails.customer.id).length === 0 ? (
+                      <Typography color="text.secondary">No prescriptions found</Typography>
+                    ) : (
+                      <TableContainer>
+                        <Table size="small">
+                          <TableHead>
+                            <TableRow>
+                              <TableCell>Treatment</TableCell>
+                              <TableCell>Description</TableCell>
+                              <TableCell>Instructions</TableCell>
+                              <TableCell>Date</TableCell>
+                              <TableCell align="right">Actions</TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {prescriptions
+                              .filter(p => p.patientId === selectedPatientDetails.customer.id)
+                              .map((prescription) => (
+                                <TableRow key={prescription.id}>
+                                  <TableCell>{prescription.medication}</TableCell>
+                                  <TableCell>{prescription.dosage}</TableCell>
+                                  <TableCell>{prescription.instructions}</TableCell>
+                                  <TableCell>{format(new Date(prescription.createdAt), 'MMM d, yyyy')}</TableCell>
+                                  <TableCell align="right">
+                                    <IconButton
+                                      size="small"
+                                      color="error"
+                                      onClick={() => handleDeletePrescription(prescription.id)}
+                                    >
+                                      <DeleteIcon fontSize="small" />
+                                    </IconButton>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                    )}
+                    <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
+                      <Button
+                        variant="contained"
+                        color="primary"
+                        startIcon={<AddIcon />}
+                        onClick={() => {
+                          setOpenPatientDialog(false);
+                          setSelectedPatient(selectedPatientDetails);
+                          setOpenPrescriptionDialog(true);
+                        }}
+                      >
+                        Add Prescription
+                      </Button>
+                    </Box>
+                  </Paper>
+                </Grid>
+              </Grid>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenPatientDialog(false)}>Close</Button>
         </DialogActions>
       </Dialog>
 
