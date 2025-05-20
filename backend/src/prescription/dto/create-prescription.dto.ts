@@ -8,6 +8,11 @@ export class CreatePrescriptionDto {
   patientId: number;
 
   @ApiProperty()
+  @IsNumber()
+  @IsNotEmpty()
+  appointmentId: number;
+
+  @ApiProperty()
   @IsString()
   @IsNotEmpty()
   medication: string;
@@ -21,4 +26,4 @@ export class CreatePrescriptionDto {
   @IsString()
   @IsNotEmpty()
   instructions: string;
-} 
+}

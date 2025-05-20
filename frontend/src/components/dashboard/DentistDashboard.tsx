@@ -75,9 +75,19 @@ interface Appointment {
   };
 }
 
+interface GroupedPatient {
+  customer: {
+    id: number;
+    name: string;
+    email: string;
+  };
+  appointments: Appointment[];
+}
+
 interface Prescription {
   id: number;
   patientId: number;
+  appointmentId: number;
   medication: string;
   dosage: string;
   instructions: string;
@@ -165,8 +175,8 @@ const MonthlyReportPDF = ({
         ) : prescriptions.map((prescription, index) => (
           <View key={index} style={styles.detailBlock} wrap={false}>
             <Text style={styles.detailLabel}>Patient:</Text> <Text style={styles.detailValue}>{(() => { const appt = appointments.find(a => a.customer.id === prescription.patientId); return appt ? appt.customer.name : 'Unknown'; })()}</Text>
-            <Text style={styles.detailLabel}>Medication:</Text> <Text style={styles.detailValue}>{prescription.medication}</Text>
-            <Text style={styles.detailLabel}>Dosage:</Text> <Text style={styles.detailValue}>{prescription.dosage}</Text>
+            <Text style={styles.detailLabel}>Treatment:</Text> <Text style={styles.detailValue}>{prescription.medication}</Text>
+            <Text style={styles.detailLabel}>Medication:</Text> <Text style={styles.detailValue}>{prescription.dosage}</Text>
             <Text style={styles.detailLabel}>Instructions:</Text> <Text style={styles.detailValue}>{prescription.instructions}</Text>
             <Text style={styles.detailLabel}>Date:</Text> <Text style={styles.detailValue}>{format(new Date(prescription.createdAt), 'MMM d, yyyy')}</Text>
             <View style={styles.detailDivider} />
@@ -280,6 +290,7 @@ const styles = StyleSheet.create({
 const DentistDashboard = () => {
   const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
+  const [groupedPatients, setGroupedPatients] = useState<GroupedPatient[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [blockedSlots, setBlockedSlots] = useState<BlockedSlot[]>([]);
   const [openBlockDialog, setOpenBlockDialog] = useState(false);
@@ -312,19 +323,21 @@ const DentistDashboard = () => {
   }, [user?.id]);
 
   useEffect(() => {
-    const fetchAllPrescriptions = async () => {
-      if (appointments.length > 0) {
+    const fetchAllPrescriptions = async () => {    if (groupedPatients?.length > 0) {
         try {
           setLoading(true);
           // Fetch prescriptions for all patients
           const allPrescriptions = await Promise.all(
-            appointments.map(appointment => 
-              prescriptionApi.getPatientPrescriptions(appointment.customer.id)
+            groupedPatients.map(patient => 
+              prescriptionApi.getPatientPrescriptions(patient.customer.id)
             )
           );
-          // Flatten the array of prescription arrays
+          // Flatten the array of prescription arrays and remove duplicates based on id
           const flattenedPrescriptions = allPrescriptions.flat();
-          setPrescriptions(flattenedPrescriptions);
+          const uniquePrescriptions = Array.from(
+            new Map(flattenedPrescriptions.map(p => [p.id, p])).values()
+          );
+          setPrescriptions(uniquePrescriptions);
         } catch (err) {
           console.error('Error fetching prescriptions:', err);
           setError('Failed to fetch prescriptions');
@@ -335,13 +348,31 @@ const DentistDashboard = () => {
     };
 
     fetchAllPrescriptions();
-  }, [appointments]);
+  }, [groupedPatients]);
+
+  useEffect(() => {
+    // Update appointments whenever groupedPatients changes
+    const allAppointments = groupedPatients.flatMap(patient => patient.appointments);
+    setAppointments(allAppointments);
+  }, [groupedPatients]);
 
   const fetchAppointments = async () => {
-    try {
-      setLoading(true);
-      const data = await appointmentApi.getDentistAppointments(user?.id.toString() || '');
-      setAppointments(data);
+    try {      setLoading(true);
+      const response = await appointmentApi.getDentistAppointments(user?.id.toString() || '');
+      // Group appointments by patient
+      const groupedData = response.reduce((acc: GroupedPatient[], appointment: Appointment) => {
+        const existingPatient = acc.find(p => p.customer.id === appointment.customer.id);
+        if (existingPatient) {
+          existingPatient.appointments.push(appointment);
+        } else {
+          acc.push({
+            customer: appointment.customer,
+            appointments: [appointment]
+          });
+        }
+        return acc;
+      }, []);
+      setGroupedPatients(groupedData);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to fetch appointments');
     } finally {
@@ -354,7 +385,16 @@ const DentistDashboard = () => {
       setLoading(true);
       const data = await prescriptionApi.getPatientPrescriptions(patientId);
       console.log('Fetched prescriptions:', data);
-      setPrescriptions(data);
+      // Merge new prescriptions with existing ones, removing duplicates
+      setPrescriptions(prevPrescriptions => {
+        const newPrescriptions = [...prevPrescriptions];
+        data.forEach(prescription => {
+          if (!newPrescriptions.some(p => p.id === prescription.id)) {
+            newPrescriptions.push(prescription);
+          }
+        });
+        return newPrescriptions;
+      });
     } catch (err: any) {
       console.error('Error fetching prescriptions:', err);
       setError('Failed to fetch prescriptions');
@@ -370,6 +410,7 @@ const DentistDashboard = () => {
       setLoading(true);
       const response = await prescriptionApi.create({
         patientId: selectedPatient.customer.id,
+        appointmentId: selectedPatient.id,
         ...prescriptionForm,
       });
       
@@ -488,11 +529,13 @@ const DentistDashboard = () => {
   const isTimeSlotBooked = (time: string): boolean => {
     if (!selectedDate) return false;
 
-    return appointments.some(app => {
-      const appointmentDate = new Date(app.appointmentDate);
-      const formattedTime = format(appointmentDate, 'hh:mm a');
-      return isSameDay(appointmentDate, selectedDate) && formattedTime === time;
-    });
+    return groupedPatients.some(patient =>
+      patient.appointments.some(app => {
+        const appointmentDate = new Date(app.appointmentDate);
+        const formattedTime = format(appointmentDate, 'hh:mm a');
+        return isSameDay(appointmentDate, selectedDate) && formattedTime === time;
+      })
+    );
   };
 
   const handleStatusChange = async (appointmentId: number, newStatus: string) => {
@@ -570,19 +613,14 @@ const DentistDashboard = () => {
     setSelectedPatientDetails(appointment);
     setOpenPatientDialog(true);
   };
-
   const renderPatientsTab = () => {
-    const confirmedPatients = appointments.filter(app => app.status === 'CONFIRMED');
-    const completedPatients = appointments.filter(app => app.status === 'COMPLETED');
-
-    // Filter patients based on search query
-    const filteredPatients = appointments.filter(app => {
-      const searchLower = searchQuery.toLowerCase();
+    if (!groupedPatients) {
       return (
-        app.customer.name.toLowerCase().includes(searchLower) ||
-        app.customer.email.toLowerCase().includes(searchLower)
+        <Box sx={{ mt: 3 }}>
+          <Typography>Loading patients...</Typography>
+        </Box>
       );
-    });
+    }
 
     return (
       <Box sx={{ mt: 3 }}>
@@ -591,258 +629,118 @@ const DentistDashboard = () => {
             Patient Management
           </Typography>
           <TextField
-            placeholder="Search by patient name or phone number..."
+            placeholder="Search patients..."
             variant="outlined"
             size="small"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            sx={{
-              minWidth: 300,
-              '& .MuiOutlinedInput-root': {
-                borderRadius: 2,
-                backgroundColor: 'white',
-                '&:hover': {
-                  '& > fieldset': {
-                    borderColor: 'primary.main',
-                  },
-                },
-              },
-            }}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <SearchIcon color="action" />
-                </InputAdornment>
-              ),
-              endAdornment: searchQuery && (
-                <InputAdornment position="end">
-                  <IconButton
-                    size="small"
-                    onClick={() => setSearchQuery('')}
-                    edge="end"
-                  >
-                    <CancelIcon fontSize="small" />
-                  </IconButton>
+                  <SearchIcon />
                 </InputAdornment>
               ),
             }}
           />
         </Box>
 
-        {/* All Patients with Prescriptions */}
-        <Paper sx={{ p: 3, mb: 3, borderRadius: 2, boxShadow: 2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-            <PersonIcon sx={{ color: 'primary.main', mr: 1 }} />
-            <Typography variant="h6" color="primary">
-              All Patients and Prescriptions
-            </Typography>
-          </Box>
-          {loading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
-              <CircularProgress />
-            </Box>
-          ) : (
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Patient Name</TableCell>
-                    <TableCell>Contact</TableCell>
-                    <TableCell>Appointment Date</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell>Prescriptions</TableCell>
-                    <TableCell align="right">Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {filteredPatients.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6} align="center">No patients found</TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredPatients.map((appointment) => {
-                      const patientPrescriptions = prescriptions.filter(
-                        p => p.patientId === appointment.customer.id
-                      );
-                      
-                      return (
-                        <TableRow 
-                          key={appointment.id} 
-                          hover 
-                          onClick={() => handlePatientClick(appointment)}
-                          sx={{ cursor: 'pointer' }}
-                        >
-                          <TableCell>{appointment.customer.name}</TableCell>
-                          <TableCell>{appointment.customer.email}</TableCell>
-                          <TableCell>{format(new Date(appointment.appointmentDate), 'MMM d, yyyy hh:mm a')}</TableCell>
-                          <TableCell>{getStatusChip(appointment.status)}</TableCell>
+        {groupedPatients.length === 0 ? (
+          <Typography align="center" color="textSecondary">
+            No patients found
+          </Typography>
+        ) : (
+          groupedPatients
+            .filter(patient => {
+              const searchLower = searchQuery.toLowerCase();
+              return (
+                patient.customer.name.toLowerCase().includes(searchLower) ||
+                patient.customer.email.toLowerCase().includes(searchLower)
+              );
+            })
+            .map((patient) => (
+              <Paper key={patient.customer.email} sx={{ p: 3, mb: 3, borderRadius: 2, boxShadow: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                  <PersonIcon sx={{ color: 'primary.main', mr: 1 }} />
+                  <Typography variant="h6" color="primary">
+                    {patient.customer.name}
+                  </Typography>
+                  <Typography variant="body2" color="textSecondary" sx={{ ml: 2 }}>
+                    {patient.customer.email}
+                  </Typography>
+                </Box>
+
+                <TableContainer>
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Date & Time</TableCell>
+                        <TableCell>Status</TableCell>
+                        <TableCell>Reason</TableCell>
+                        <TableCell>Symptoms</TableCell>
+                        <TableCell align="right">Actions</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {patient.appointments.map((appointment) => (
+                        <TableRow key={appointment.id} hover>
                           <TableCell>
-                            {patientPrescriptions.length === 0 ? (
-                              <Typography variant="body2" color="text.secondary">
-                                No prescriptions
-                              </Typography>
-                            ) : (
-                              patientPrescriptions.map(prescription => (
-                                <Box key={prescription.id} sx={{ mb: 1 }}>
-                                  <Typography variant="body2">
-                                    <strong>{prescription.medication}</strong> - {prescription.dosage}
-                                  </Typography>
-                                  <Typography variant="caption" color="text.secondary">
-                                    {prescription.instructions}
-                                  </Typography>
-                                  <IconButton
-                                    size="small"
-                                    color="error"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDeletePrescription(prescription.id);
-                                    }}
-                                  >
-                                    <DeleteIcon fontSize="small" />
-                                  </IconButton>
-                                </Box>
-                              ))
-                            )}
+                            {format(new Date(appointment.appointmentDate), 'MMM d, yyyy hh:mm a')}
                           </TableCell>
-                          <TableCell align="right">
-                            <Button
-                              size="small"
-                              variant="contained"
-                              color="primary"
-                              startIcon={<AddIcon />}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedPatient(appointment);
-                                setOpenPrescriptionDialog(true);
-                              }}
-                            >
-                              Add Prescription
-                            </Button>
+                          <TableCell>{getStatusChip(appointment.status)}</TableCell>
+                          <TableCell>{appointment.reason}</TableCell>
+                          <TableCell>
+                            {appointment.symptoms && appointment.symptoms.length > 0 ? (
+                              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                {appointment.symptoms.map(({ symptom }, index) => (
+                                  <Chip
+                                    key={index}
+                                    label={symptom.name}
+                                    size="small"
+                                    sx={{ m: 0.5 }}
+                                  />
+                                ))}
+                              </Box>
+                            ) : (
+                              'No symptoms reported'
+                            )}
+                          </TableCell>                          <TableCell align="right">
+                            <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                              {getStatusActions(appointment)}
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                color="info"
+                                onClick={() => handlePatientClick(appointment)}
+                              >
+                                View Details
+                              </Button>
+                            </Box>
                           </TableCell>
                         </TableRow>
-                      );
-                    })
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          )}
-        </Paper>
-
-        {/* Confirmed Patients Section */}
-        {(patientFilter === 'all' || patientFilter === 'confirmed') && (
-          <Paper sx={{ p: 3, mb: 3, borderRadius: 2, boxShadow: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-              <CheckCircleIcon sx={{ color: 'success.main', mr: 1 }} />
-              <Typography variant="h6" color="primary">
-                Confirmed Patients
-              </Typography>
-            </Box>
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Patient Name</TableCell>
-                    <TableCell>Contact</TableCell>
-                    <TableCell>Appointment Date</TableCell>
-                    <TableCell>Reason</TableCell>
-                    <TableCell align="right">Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {confirmedPatients.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={5} align="center">No confirmed patients found</TableCell>
-                    </TableRow>
-                  ) : (
-                    confirmedPatients.map((appointment) => (
-                      <TableRow 
-                        key={appointment.id} 
-                        hover 
-                        onClick={() => setSelectedPatient(appointment)}
-                        sx={{ cursor: 'pointer' }}
-                      >
-                        <TableCell>{appointment.customer.name}</TableCell>
-                        <TableCell>{appointment.customer.email}</TableCell>
-                        <TableCell>{format(new Date(appointment.appointmentDate), 'MMM d, yyyy hh:mm a')}</TableCell>
-                        <TableCell>{appointment.reason}</TableCell>
-                        <TableCell align="right">
-                          <Button
-                            size="small"
-                            variant="contained"
-                            color="primary"
-                            startIcon={<AddIcon />}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedPatient(appointment);
-                              setOpenPrescriptionDialog(true);
-                            }}
-                          >
-                            Add Prescription
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </Paper>
-        )}
-
-        {/* Completed Patients Section */}
-        {(patientFilter === 'all' || patientFilter === 'completed') && (
-          <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-              <DoneIcon sx={{ color: 'info.main', mr: 1 }} />
-              <Typography variant="h6" color="primary">
-                Completed Patients
-              </Typography>
-            </Box>
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Patient Name</TableCell>
-                    <TableCell>Contact</TableCell>
-                    <TableCell>Visit Date</TableCell>
-                    <TableCell>Reason</TableCell>
-                    <TableCell align="right">Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {completedPatients.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={5} align="center">No completed patients found</TableCell>
-                    </TableRow>
-                  ) : (
-                    completedPatients.map((appointment) => (
-                      <TableRow 
-                        key={appointment.id} 
-                        hover
-                        onClick={() => setSelectedPatient(appointment)}
-                        sx={{ cursor: 'pointer' }}
-                      >
-                        <TableCell>{appointment.customer.name}</TableCell>
-                        <TableCell>{appointment.customer.email}</TableCell>
-                        <TableCell>{format(new Date(appointment.appointmentDate), 'MMM d, yyyy hh:mm a')}</TableCell>
-                        <TableCell>{appointment.reason}</TableCell>
-                        <TableCell align="right">
-                          {/* Removed the View/Add Prescription button */}
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </Paper>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Paper>
+            ))
         )}
       </Box>
     );
   };
-
   const handleDownloadReport = () => {
+    if (!appointments || !prescriptions) {
+      return (
+        <Button
+          variant="contained"
+          color="primary"
+          startIcon={<DownloadIcon />}
+          disabled={true}
+        >
+          Loading data...
+        </Button>
+      );
+    }
+
     const monthStart = startOfMonth(selectedMonth);
     const monthEnd = endOfMonth(selectedMonth);
     
@@ -894,9 +792,8 @@ const DentistDashboard = () => {
           <Paper sx={dashboardStyles.statsCard}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
               <EventIcon sx={{ fontSize: 40, color: 'primary.main', mr: 2 }} />
-              <Box>
-                <Typography variant="h4" component="div">
-                  {appointments.filter(a => a.status === 'PENDING').length}
+              <Box>                <Typography variant="h4" component="div">
+                  {groupedPatients?.flatMap(p => p.appointments).filter(a => a.status === 'PENDING').length || 0}
                 </Typography>
                 <Typography color="text.secondary">Pending Appointments</Typography>
               </Box>
@@ -907,9 +804,8 @@ const DentistDashboard = () => {
           <Paper sx={dashboardStyles.statsCard}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
               <PersonIcon sx={{ fontSize: 40, color: 'success.main', mr: 2 }} />
-              <Box>
-                <Typography variant="h4" component="div">
-                  {appointments.filter(a => a.status === 'CONFIRMED').length}
+              <Box>                <Typography variant="h4" component="div">
+                  {groupedPatients?.flatMap(p => p.appointments).filter(a => a.status === 'CONFIRMED').length || 0}
                 </Typography>
                 <Typography color="text.secondary">Confirmed Today</Typography>
               </Box>
@@ -920,9 +816,8 @@ const DentistDashboard = () => {
           <Paper sx={dashboardStyles.statsCard}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
               <PaymentIcon sx={{ fontSize: 40, color: 'warning.main', mr: 2 }} />
-              <Box>
-                <Typography variant="h4" component="div">
-                  {appointments.filter(a => a.status === 'COMPLETED').length}
+              <Box>                <Typography variant="h4" component="div">
+                  {groupedPatients?.flatMap(p => p.appointments).filter(a => a.status === 'COMPLETED').length || 0}
                 </Typography>
                 <Typography color="text.secondary">Completed Today</Typography>
               </Box>
@@ -1165,185 +1060,163 @@ const DentistDashboard = () => {
       </Dialog>
 
       {/* Add Prescription Dialog */}
-      <Dialog open={openPrescriptionDialog} onClose={() => setOpenPrescriptionDialog(false)}>
-        <DialogTitle>Add Prescription</DialogTitle>
+      <Dialog open={openPrescriptionDialog} onClose={() => setOpenPrescriptionDialog(false)} maxWidth="md" fullWidth>
+        <DialogTitle>Add New Prescription</DialogTitle>
         <DialogContent>
-          <Box sx={{ mt: 2 }}>
+          <Box sx={{ p: 2 }}>
+            <Typography variant="subtitle1" gutterBottom>
+              Patient: {selectedPatient?.customer.name}
+            </Typography>
             <TextField
               fullWidth
               label="Treatment"
               value={prescriptionForm.medication}
               onChange={(e) => setPrescriptionForm({ ...prescriptionForm, medication: e.target.value })}
-              sx={{ mb: 2 }}
+              margin="normal"
             />
             <TextField
               fullWidth
-              label="Description"
+              label="Medication"
               value={prescriptionForm.dosage}
               onChange={(e) => setPrescriptionForm({ ...prescriptionForm, dosage: e.target.value })}
-              sx={{ mb: 2 }}
+              margin="normal"
             />
             <TextField
               fullWidth
-              label="Instructions"
               multiline
-              rows={3}
+              rows={4}
+              label="Instructions"
               value={prescriptionForm.instructions}
               onChange={(e) => setPrescriptionForm({ ...prescriptionForm, instructions: e.target.value })}
+              margin="normal"
             />
           </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenPrescriptionDialog(false)}>Cancel</Button>
           <Button onClick={handleAddPrescription} variant="contained" color="primary">
-            Add
+            Add Prescription
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* Patient Details Dialog */}
-      <Dialog 
-        open={openPatientDialog} 
-        onClose={() => setOpenPatientDialog(false)}
-        maxWidth="md"
-        fullWidth
-      >
+      <Dialog open={openPatientDialog} onClose={() => setOpenPatientDialog(false)} maxWidth="md" fullWidth>
         <DialogTitle>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <PersonIcon color="primary" />
-            <Typography variant="h6">Patient Details</Typography>
-          </Box>
+          Patient Details
+          <IconButton
+            aria-label="close"
+            onClick={() => setOpenPatientDialog(false)}
+            sx={{ position: 'absolute', right: 8, top: 8 }}
+          >
+            <CancelIcon />
+          </IconButton>
         </DialogTitle>
         <DialogContent>
           {selectedPatientDetails && (
-            <Box sx={{ mt: 2 }}>
-              <Grid container spacing={3}>
-                {/* Patient Information */}
-                <Grid item xs={12}>
-                  <Paper sx={{ p: 2, mb: 2 }}>
-                    <Typography variant="h6" gutterBottom>Personal Information</Typography>
-                    <Grid container spacing={2}>
-                      <Grid item xs={12} md={6}>
-                        <Typography variant="body1">
-                          <strong>Name:</strong> {selectedPatientDetails.customer.name}
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={12} md={6}>
-                        <Typography variant="body1">
-                          <strong>Email:</strong> {selectedPatientDetails.customer.email}
-                        </Typography>
-                      </Grid>
+            <Box sx={{ p: 2 }}>
+              <Typography variant="h6" gutterBottom color="primary">
+                {selectedPatientDetails.customer.name}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                {selectedPatientDetails.customer.email}
+              </Typography>
+              
+              <Box sx={{ mt: 3 }}>
+                <Typography variant="subtitle1" gutterBottom>
+                  Latest Appointment
+                </Typography>
+                <Paper sx={{ p: 2, mb: 3 }}>
+                  <Grid container spacing={2}>
+                    <Grid item xs={6}>
+                      <Typography variant="body2" color="text.secondary">
+                        Date:
+                      </Typography>
+                      <Typography variant="body1">
+                        {format(new Date(selectedPatientDetails.appointmentDate), 'PPP')}
+                      </Typography>
                     </Grid>
-                  </Paper>
-                </Grid>
+                    <Grid item xs={6}>
+                      <Typography variant="body2" color="text.secondary">
+                        Status:
+                      </Typography>
+                      {getStatusChip(selectedPatientDetails.status)}
+                    </Grid>
+                    <Grid item xs={12}>
+                      <Typography variant="body2" color="text.secondary">
+                        Reason:
+                      </Typography>
+                      <Typography variant="body1">{selectedPatientDetails.reason}</Typography>
+                    </Grid>
+                    <Grid item xs={12}>
+                      <Typography variant="body2" color="text.secondary">
+                        Symptoms:
+                      </Typography>
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 1 }}>
+                        {selectedPatientDetails.symptoms?.map(({ symptom }) => (
+                          <Chip key={symptom.id} label={symptom.name} size="small" />
+                        ))}
+                      </Box>
+                    </Grid>
+                  </Grid>
+                </Paper>          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="subtitle1">Prescriptions</Typography>
+            <Button
+              startIcon={<AddIcon />}
+              onClick={() => {
+                setSelectedPatient(selectedPatientDetails);
+                setOpenPrescriptionDialog(true);
+                setOpenPatientDialog(false);
+              }}
+              disabled={selectedPatientDetails.status !== 'COMPLETED'}
+              title={selectedPatientDetails.status !== 'COMPLETED' ? 'Can only add prescriptions to completed appointments' : ''}
+            >
+              Add Prescription
+            </Button>
+          </Box>
+          {selectedPatientDetails.status !== 'COMPLETED' && (
+            <Typography color="warning.main" sx={{ mb: 2 }}>
+              * Prescriptions can only be added after the appointment is marked as completed
+            </Typography>
+          )}
 
-                {/* Appointment Details */}
-                <Grid item xs={12}>
-                  <Paper sx={{ p: 2, mb: 2 }}>
-                    <Typography variant="h6" gutterBottom>Appointment Details</Typography>
-                    <Grid container spacing={2}>
-                      <Grid item xs={12} md={6}>
-                        <Typography variant="body1">
-                          <strong>Date:</strong> {format(new Date(selectedPatientDetails.appointmentDate), 'MMM d, yyyy hh:mm a')}
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={12} md={6}>
-                        <Typography variant="body1">
-                          <strong>Status:</strong> {getStatusChip(selectedPatientDetails.status)}
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={12}>
-                        <Typography variant="body1">
-                          <strong>Reason:</strong> {selectedPatientDetails.reason}
-                        </Typography>
-                      </Grid>
-                      {selectedPatientDetails.symptoms && selectedPatientDetails.symptoms.length > 0 && (
-                        <Grid item xs={12}>
-                          <Typography variant="body1" gutterBottom>
-                            <strong>Symptoms:</strong>
-                          </Typography>
-                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                            {selectedPatientDetails.symptoms.map(({ symptom }, index) => (
-                              <Chip
-                                key={index}
-                                label={symptom.name}
+                <TableContainer component={Paper}>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Treatment</TableCell>
+                        <TableCell>Medication</TableCell>
+                        <TableCell>Instructions</TableCell>
+                        <TableCell>Date</TableCell>
+                        <TableCell align="right">Actions</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>                      {prescriptions
+                        .filter(p => p.appointmentId === selectedPatientDetails.id)
+                        .map((prescription) => (
+                          <TableRow key={prescription.id}>
+                            <TableCell>{prescription.medication}</TableCell>
+                            <TableCell>{prescription.dosage}</TableCell>
+                            <TableCell>{prescription.instructions}</TableCell>
+                            <TableCell>{format(new Date(prescription.createdAt), 'PP')}</TableCell>
+                            <TableCell align="right">
+                              <IconButton
                                 size="small"
-                                color="primary"
-                                variant="outlined"
-                              />
-                            ))}
-                          </Box>
-                        </Grid>
-                      )}
-                    </Grid>
-                  </Paper>
-                </Grid>
-
-                {/* Prescriptions */}
-                <Grid item xs={12}>
-                  <Paper sx={{ p: 2 }}>
-                    <Typography variant="h6" gutterBottom>Prescriptions</Typography>
-                    {prescriptions.filter(p => p.patientId === selectedPatientDetails.customer.id).length === 0 ? (
-                      <Typography color="text.secondary">No prescriptions found</Typography>
-                    ) : (
-                      <TableContainer>
-                        <Table size="small">
-                          <TableHead>
-                            <TableRow>
-                              <TableCell>Treatment</TableCell>
-                              <TableCell>Description</TableCell>
-                              <TableCell>Instructions</TableCell>
-                              <TableCell>Date</TableCell>
-                              <TableCell align="right">Actions</TableCell>
-                            </TableRow>
-                          </TableHead>
-                          <TableBody>
-                            {prescriptions
-                              .filter(p => p.patientId === selectedPatientDetails.customer.id)
-                              .map((prescription) => (
-                                <TableRow key={prescription.id}>
-                                  <TableCell>{prescription.medication}</TableCell>
-                                  <TableCell>{prescription.dosage}</TableCell>
-                                  <TableCell>{prescription.instructions}</TableCell>
-                                  <TableCell>{format(new Date(prescription.createdAt), 'MMM d, yyyy')}</TableCell>
-                                  <TableCell align="right">
-                                    <IconButton
-                                      size="small"
-                                      color="error"
-                                      onClick={() => handleDeletePrescription(prescription.id)}
-                                    >
-                                      <DeleteIcon fontSize="small" />
-                                    </IconButton>
-                                  </TableCell>
-                                </TableRow>
-                              ))}
-                          </TableBody>
-                        </Table>
-                      </TableContainer>
-                    )}
-                    <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
-                      <Button
-                        variant="contained"
-                        color="primary"
-                        startIcon={<AddIcon />}
-                        onClick={() => {
-                          setOpenPatientDialog(false);
-                          setSelectedPatient(selectedPatientDetails);
-                          setOpenPrescriptionDialog(true);
-                        }}
-                      >
-                        Add Prescription
-                      </Button>
-                    </Box>
-                  </Paper>
-                </Grid>
-              </Grid>
+                                color="error"
+                                onClick={() => handleDeletePrescription(prescription.id)}
+                              >
+                                <DeleteIcon />
+                              </IconButton>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Box>
             </Box>
           )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenPatientDialog(false)}>Close</Button>
-        </DialogActions>
       </Dialog>
 
       {/* Notifications */}

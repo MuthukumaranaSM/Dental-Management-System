@@ -118,6 +118,7 @@ model Appointment {
   bill           Bill?
   notifications  Notification[]
   symptoms       AppointmentSymptom[]
+  prescriptions  Prescription[]
 
   @@index([customerId])
   @@index([dentistId])
@@ -146,6 +147,8 @@ model Prescription {
   updatedAt    DateTime @updatedAt
   patient      User     @relation(fields: [patientId], references: [id])
   patientId    Int
+  appointment  Appointment @relation(fields: [appointmentId], references: [id])
+  appointmentId Int
 
   @@map("prescriptions")
 }

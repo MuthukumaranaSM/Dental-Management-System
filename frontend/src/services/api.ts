@@ -167,6 +167,7 @@ export const dentistApi = {
 export const prescriptionApi = {
   create: async (data: {
     patientId: number;
+    appointmentId: number;
     medication: string;
     dosage: string;
     instructions: string;

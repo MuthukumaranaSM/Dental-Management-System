@@ -203,7 +203,7 @@ const CustomerDashboard = () => {
               <TableHead>
                 <TableRow>
                   <TableCell>Treatment</TableCell>
-                  <TableCell>Description</TableCell>
+                  <TableCell>Medication</TableCell>
                   <TableCell>Instructions</TableCell>
                   <TableCell>Prescribed Date</TableCell>
                 </TableRow>

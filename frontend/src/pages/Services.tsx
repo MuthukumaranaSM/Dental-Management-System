@@ -93,9 +93,7 @@ const Services = () => {
                 <Typography variant="body1" color="text.secondary" sx={{ mb: 3, textAlign: 'center', fontWeight: 400 }}>
                   {service.description}
                 </Typography>
-                <Button variant="outlined" size="small" sx={{ borderRadius: 2, fontWeight: 600, textTransform: 'none' }}>
-                  Learn More
-                </Button>
+                
               </Card>
             </motion.div>
           ))}
