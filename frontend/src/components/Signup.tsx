@@ -10,6 +10,10 @@ interface SignupData {
   password: string;
   confirmPassword: string;
   role: string;
+  dateOfBirth?: string;
+  address?: string;
+  phoneNumber?: string;
+  gender?: 'MALE' | 'FEMALE' | 'OTHER';
 }
 
 export default function Signup() {
@@ -17,13 +21,16 @@ export default function Signup() {
   const location = useLocation();
   const { login } = useAuth();
   const [error, setError] = useState('');
-  const [showVerificationMessage, setShowVerificationMessage] = useState(false);
-  const [formData, setFormData] = useState<SignupData>({
+  const [showVerificationMessage, setShowVerificationMessage] = useState(false);  const [formData, setFormData] = useState<SignupData>({
     name: '',
     email: '',
     password: '',
     confirmPassword: '',
-    role: 'CUSTOMER'
+    role: 'CUSTOMER',
+    dateOfBirth: '',
+    address: '',
+    phoneNumber: '',
+    gender: undefined
   });
 
   const isFromAppointment = location.state?.from === 'appointment';
@@ -42,14 +49,16 @@ export default function Signup() {
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
       return;
-    }
-
-    try {
+    }    try {
       const response = await authApi.signup({
         name: formData.name,
         email: formData.email,
         password: formData.password,
-        role: formData.role
+        role: formData.role,
+        dateOfBirth: formData.dateOfBirth,
+        address: formData.address,
+        phoneNumber: formData.phoneNumber,
+        gender: formData.gender
       });
       
       // Show verification message instead of logging in immediately
@@ -156,6 +165,52 @@ export default function Signup() {
             value={formData.confirmPassword}
             onChange={handleChange}
           />
+          <TextField
+            margin="normal"
+            required
+            fullWidth
+            name="dateOfBirth"
+            label="Date of Birth"
+            type="date"
+            value={formData.dateOfBirth}
+            onChange={handleChange}
+            InputLabelProps={{ shrink: true }}
+          />
+          <FormControl fullWidth margin="normal" required>
+            <InputLabel id="gender-label">Gender</InputLabel>
+            <Select
+              labelId="gender-label"
+              id="gender"
+              name="gender"
+              value={formData.gender || ''}
+              onChange={handleChange}
+              label="Gender"
+            >
+              <MenuItem value="MALE">Male</MenuItem>
+              <MenuItem value="FEMALE">Female</MenuItem>
+              <MenuItem value="OTHER">Other</MenuItem>
+            </Select>
+          </FormControl>
+          <TextField
+            margin="normal"
+            required
+            fullWidth
+            name="address"
+            label="Address"
+            value={formData.address}
+            onChange={handleChange}
+            multiline
+            rows={2}
+          />
+          <TextField
+            margin="normal"
+            required
+            fullWidth
+            name="phoneNumber"
+            label="Phone Number"
+            value={formData.phoneNumber}
+            onChange={handleChange}
+          />
           {error && (
             <Typography color="error" sx={{ mt: 2 }}>
               {error}
@@ -178,4 +233,4 @@ export default function Signup() {
       </Box>
     </Container>
   );
-} 
+}

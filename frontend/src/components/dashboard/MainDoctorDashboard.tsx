@@ -56,16 +56,28 @@ export default function MainDoctorDashboard() {
     role: '',
     specialization: '',
     licenseNumber: '',
+    shift: '',
   });
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<{ id: number; name: string; role: string } | null>(null);
-
   const roles = [
-    { value: 'ADMIN', label: 'Admin' },
     { value: 'DENTIST', label: 'Dentist' },
     { value: 'RECEPTIONIST', label: 'Receptionist' },
     { value: 'CUSTOMER', label: 'Customer' },
   ];
+
+  // Helper function to determine if a field should be shown based on role
+  const showField = (fieldName: string, selectedRole: string) => {
+    switch (fieldName) {
+      case 'specialization':
+      case 'licenseNumber':
+        return selectedRole === 'DENTIST' || selectedRole === 'MAIN_DOCTOR';
+      case 'shift':
+        return selectedRole === 'RECEPTIONIST';
+      default:
+        return false;
+    }
+  };
 
   useEffect(() => {
     fetchUsers();
@@ -79,13 +91,43 @@ export default function MainDoctorDashboard() {
       setError('Failed to fetch users');
     }
   };
-
   const handleCreateUser = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
     try {
-      await authApi.createUser(formData);
+      let userData = {
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        role: formData.role
+      };
+      
+      // Only include role-specific fields when needed
+      if (formData.role === 'DENTIST' || formData.role === 'MAIN_DOCTOR') {
+        if (!formData.specialization || !formData.licenseNumber) {
+          setError(`${formData.role} requires specialization and license number`);
+          setLoading(false);
+          return;
+        }
+        userData = {
+          ...userData,
+          specialization: formData.specialization,
+          licenseNumber: formData.licenseNumber
+        };
+      } else if (formData.role === 'RECEPTIONIST') {
+        if (!formData.shift) {
+          setError('Receptionist requires shift information');
+          setLoading(false);
+          return;
+        }
+        userData = {
+          ...userData,
+          shift: formData.shift
+        };
+      }
+
+      await authApi.createUser(userData);
       setFormData({
         name: '',
         email: '',
@@ -93,10 +135,12 @@ export default function MainDoctorDashboard() {
         role: '',
         specialization: '',
         licenseNumber: '',
+        shift: '',
       });
+      setSuccessMessage('User created successfully');
       fetchUsers();
-    } catch (err) {
-      setError('Failed to create user');
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to create user');
     } finally {
       setLoading(false);
     }
@@ -149,11 +193,7 @@ export default function MainDoctorDashboard() {
   ];
 
   return (
-    <Box sx={{
-      minHeight: '100vh',
-      background: 'linear-gradient(135deg, #e3f0ff 0%, #f9f9f9 100%)',
-      py: 6,
-    }}>
+    <Box sx={{ p: 3, minHeight: '100vh', bgcolor: '#f5f5f5' }}>
       <Container maxWidth="lg" sx={{ mt: 10, mb: 4 }}>
         {/* Stats Section */}
         <Grid container spacing={3} sx={{ mb: 4 }}>
@@ -215,7 +255,16 @@ export default function MainDoctorDashboard() {
               <InputLabel>Role</InputLabel>
               <Select
                 value={formData.role}
-                onChange={e => setFormData({ ...formData, role: e.target.value })}
+                onChange={e => {
+                  // Reset role-specific fields when role changes
+                  setFormData({
+                    ...formData,
+                    role: e.target.value,
+                    specialization: '',
+                    licenseNumber: '',
+                    shift: '',
+                  });
+                }}
                 label="Role"
               >
                 {roles.map(role => (
@@ -223,10 +272,50 @@ export default function MainDoctorDashboard() {
                 ))}
               </Select>
             </FormControl>
+
+            {/* Conditional Fields based on Role */}
+            {showField('specialization', formData.role) && (
+              <TextField
+                label="Specialization"
+                value={formData.specialization}
+                onChange={e => setFormData({ ...formData, specialization: e.target.value })}
+                required
+                variant="outlined"
+                sx={{ flex: '1 1 200px', background: 'white', borderRadius: 2 }}
+              />
+            )}
+
+            {showField('licenseNumber', formData.role) && (
+              <TextField
+                label="License Number"
+                value={formData.licenseNumber}
+                onChange={e => setFormData({ ...formData, licenseNumber: e.target.value })}
+                required
+                variant="outlined"
+                sx={{ flex: '1 1 200px', background: 'white', borderRadius: 2 }}
+              />
+            )}
+
+            {showField('shift', formData.role) && (
+              <TextField
+                label="Shift"
+                value={formData.shift}
+                onChange={e => setFormData({ ...formData, shift: e.target.value })}
+                required
+                variant="outlined"
+                sx={{ flex: '1 1 200px', background: 'white', borderRadius: 2 }}
+                placeholder="e.g., Morning, Evening, Night"
+              />
+            )}
+
             <Button
               type="submit"
               variant="contained"
-              disabled={loading || !formData.name || !formData.email || !formData.password || !formData.role}
+              disabled={loading || !formData.name || !formData.email || !formData.password || !formData.role || 
+                (showField('specialization', formData.role) && !formData.specialization) ||
+                (showField('licenseNumber', formData.role) && !formData.licenseNumber) ||
+                (showField('shift', formData.role) && !formData.shift)
+              }
               sx={{ alignSelf: 'flex-end', minWidth: 150, fontWeight: 600, fontSize: 16 }}
             >
               {loading ? 'Creating...' : 'Create User'}
@@ -352,4 +441,4 @@ export default function MainDoctorDashboard() {
       </Container>
     </Box>
   );
-} 
+}

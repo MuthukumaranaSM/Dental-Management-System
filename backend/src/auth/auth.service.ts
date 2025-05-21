@@ -20,7 +20,18 @@ export class AuthService {
     return crypto.randomBytes(32).toString('hex');
   }
 
-  async signup(email: string, password: string, name: string, role: Role) {
+  async signup(
+    email: string,
+    password: string,
+    name: string,
+    role: Role,
+    specialization?: string,
+    licenseNumber?: string,
+    dateOfBirth?: string,
+    address?: string,
+    phoneNumber?: string,
+    gender?: string
+  ) {
     console.log('Starting signup process for:', email);
     
     const existingUser = await this.prisma.user.findUnique({
@@ -44,24 +55,58 @@ export class AuthService {
       throw new ConflictException('Invalid role specified');
     }
 
+    // Validate required fields for MAIN_DOCTOR
+    if (role === Role.MAIN_DOCTOR) {
+      if (!specialization || !licenseNumber) {
+        throw new BadRequestException('Main Doctor requires specialization and license number');
+      }
+    }
+
     const verificationToken = this.generateVerificationToken();
     const tokenExpires = new Date();
     tokenExpires.setHours(tokenExpires.getHours() + 24); // Token expires in 24 hours
 
-    console.log('Generated verification token:', verificationToken);
-    console.log('Token expires at:', tokenExpires);
+    const userData = {
+      email,
+      password: hashedPassword,
+      name,
+      roleId: roleRecord.id,
+      emailVerificationToken: verificationToken,
+      emailVerificationTokenExpires: tokenExpires,
+    };
+
+    // Add role-specific data
+    let roleSpecificData = {};
+    if (role === Role.MAIN_DOCTOR) {
+      roleSpecificData = {
+        mainDoctor: {
+          create: {
+            specialization,
+            licenseNumber,
+          },
+        },
+      };    } else if (role === Role.CUSTOMER) {
+      roleSpecificData = {
+        customer: {
+          create: {
+            dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
+            address: address || '',
+            phoneNumber: phoneNumber || '',
+            gender: gender || 'OTHER'
+          }
+        }
+      };
+    }
 
     const user = await this.prisma.user.create({
       data: {
-        email,
-        password: hashedPassword,
-        name,
-        roleId: roleRecord.id,
-        emailVerificationToken: verificationToken,
-        emailVerificationTokenExpires: tokenExpires,
+        ...userData,
+        ...roleSpecificData,
       },
       include: {
         role: true,
+        mainDoctor: true,
+        customer: true,
       },
     });
 
@@ -87,6 +132,8 @@ export class AuthService {
         name: user.name,
         role: user.role.name,
         isEmailVerified: user.isEmailVerified,
+        specialization: user.mainDoctor?.specialization,
+        licenseNumber: user.mainDoctor?.licenseNumber,
       },
     };
   }
@@ -154,11 +201,11 @@ export class AuthService {
     return { message: 'Email verified successfully' };
   }
 
-  async login(email: string, password: string) {
-    const user = await this.prisma.user.findUnique({
+  async login(email: string, password: string) {    const user = await this.prisma.user.findUnique({
       where: { email },
       include: {
         role: true,
+        customer: true,
       },
     });
 
@@ -172,7 +219,14 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const token = this.jwtService.sign({ userId: user.id, role: user.role.name });
+    const token = this.jwtService.sign({ userId: user.id, role: user.role.name });    const customerData = user.customer ? {
+      id: user.customer.id,
+      userId: user.customer.userId,
+      dateOfBirth: user.customer.dateOfBirth || new Date(),
+      phoneNumber: user.customer.phoneNumber || '',
+      address: user.customer.address || '',
+      gender: user.customer.gender || 'OTHER'
+    } : undefined;
 
     return {
       token,
@@ -182,15 +236,19 @@ export class AuthService {
         name: user.name,
         role: user.role.name,
         isEmailVerified: user.isEmailVerified,
+        customer: customerData,
       },
     };
   }
-
   async getUserDetails(userId: number): Promise<UserDto> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       include: {
         role: true,
+        customer: true,
+        dentist: true,
+        receptionist: true,
+        mainDoctor: true
       },
     });
 
@@ -203,6 +261,19 @@ export class AuthService {
       email: user.email,
       name: user.name,
       role: user.role.name as Role,
+      specialization: user.dentist?.specialization || user.mainDoctor?.specialization,
+      licenseNumber: user.dentist?.licenseNumber || user.mainDoctor?.licenseNumber,
+      shift: user.receptionist?.shift,
+      customer: user.customer ? {
+        id: user.customer.id,
+        userId: user.customer.userId,
+        phoneNumber: user.customer.phoneNumber || '',
+        dateOfBirth: user.customer.dateOfBirth,
+        address: user.customer.address,
+        gender: user.customer.gender
+      } : undefined,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt
     };
   }
 
@@ -269,7 +340,10 @@ export class AuthService {
 
     // Add role-specific data
     let roleSpecificData = {};
-    if (role === Role.DENTIST && specialization && licenseNumber) {
+    if (role === Role.DENTIST) {
+      if (!specialization || !licenseNumber) {
+        throw new BadRequestException('Dentist requires specialization and license number');
+      }
       roleSpecificData = {
         dentist: {
           create: {
@@ -278,13 +352,34 @@ export class AuthService {
           },
         },
       };
-    } else if (role === Role.RECEPTIONIST && shift) {
+    } else if (role === Role.RECEPTIONIST) {
+      if (!shift) {
+        throw new BadRequestException('Receptionist requires shift information');
+      }
       roleSpecificData = {
         receptionist: {
           create: {
             shift,
           },
         },
+      };
+    } else if (role === Role.MAIN_DOCTOR) {
+      if (!specialization || !licenseNumber) {
+        throw new BadRequestException('Main Doctor requires specialization and license number');
+      }
+      roleSpecificData = {
+        mainDoctor: {
+          create: {
+            specialization,
+            licenseNumber,
+          },
+        },
+      };
+    } else if (role === Role.CUSTOMER) {
+      roleSpecificData = {
+        customer: {
+          create: {} // Create empty customer record that can be updated later
+        }
       };
     }
 
@@ -295,8 +390,10 @@ export class AuthService {
       },
       include: {
         role: true,
+        customer: true,
         dentist: true,
         receptionist: true,
+        mainDoctor: true,
       },
     });
 
@@ -314,8 +411,8 @@ export class AuthService {
       email: user.email,
       name: user.name,
       role: user.role.name as Role,
-      specialization: user.dentist?.specialization,
-      licenseNumber: user.dentist?.licenseNumber,
+      specialization: user.dentist?.specialization || user.mainDoctor?.specialization,
+      licenseNumber: user.dentist?.licenseNumber || user.mainDoctor?.licenseNumber,
       shift: user.receptionist?.shift,
     };
   }
@@ -325,7 +422,8 @@ export class AuthService {
       include: {
         role: true,
         dentist: true,
-        receptionist: true
+        receptionist: true,
+        customer: true
       }
     });
 
@@ -336,7 +434,15 @@ export class AuthService {
       role: user.role.name as Role,
       specialization: user.dentist?.specialization,
       licenseNumber: user.dentist?.licenseNumber,
-      shift: user.receptionist?.shift
+      shift: user.receptionist?.shift,
+      customer: user.customer ? {
+        id: user.customer.id,
+        userId: user.customer.userId,
+        phoneNumber: user.customer.phoneNumber || '',
+        dateOfBirth: user.customer.dateOfBirth,
+        address: user.customer.address,
+        gender: user.customer.gender
+      } : undefined
     }));
   }
 

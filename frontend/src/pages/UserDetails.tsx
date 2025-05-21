@@ -42,6 +42,14 @@ interface UserDetails {
   shift?: string;
   createdAt: string;
   updatedAt: string;
+  customer?: {
+    id: number;
+    userId: number;
+    phoneNumber: string;
+    dateOfBirth?: string;
+    address?: string;
+    gender?: string;
+  };
 }
 
 interface Bill {
@@ -169,6 +177,22 @@ const UserDetails: React.FC = () => {
                 <Typography variant="body1" sx={{ mb: 1 }}>
                   <strong>Role:</strong> {user.role}
                 </Typography>
+                {user.role === 'CUSTOMER' && user.customer && (
+                  <>
+                    <Typography variant="body1" sx={{ mb: 1 }}>
+                      <strong>Phone Number:</strong> {user.customer.phoneNumber || '-'}
+                    </Typography>
+                    <Typography variant="body1" sx={{ mb: 1 }}>
+                      <strong>Date of Birth:</strong> {user.customer.dateOfBirth ? format(new Date(user.customer.dateOfBirth), 'MMMM d, yyyy') : '-'}
+                    </Typography>
+                    <Typography variant="body1" sx={{ mb: 1 }}>
+                      <strong>Address:</strong> {user.customer.address || '-'}
+                    </Typography>
+                    <Typography variant="body1" sx={{ mb: 1 }}>
+                      <strong>Gender:</strong> {user.customer.gender ? user.customer.gender.toLowerCase() : '-'}
+                    </Typography>
+                  </>
+                )}
               </Box>
             </CardContent>
           </Card>

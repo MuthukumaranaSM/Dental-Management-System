@@ -33,13 +33,18 @@ export class AuthController {
       },
     },
   })
-  @ApiResponse({ status: 409, description: 'Email already exists' })
-  async signup(@Body() signupDto: SignupDto) {
+  @ApiResponse({ status: 409, description: 'Email already exists' })  async signup(@Body() signupDto: SignupDto) {
     return this.authService.signup(
       signupDto.email,
       signupDto.password,
       signupDto.name,
       signupDto.role,
+      signupDto.specialization,
+      signupDto.licenseNumber,
+      signupDto.dateOfBirth,
+      signupDto.address,
+      signupDto.phoneNumber,
+      signupDto.gender
     );
   }
 
@@ -91,7 +96,6 @@ export class AuthController {
   async getDentists() {
     return this.authService.getDentists();
   }
-
   @Post('admin/create-user')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.MAIN_DOCTOR)
@@ -101,7 +105,15 @@ export class AuthController {
   @ApiResponse({ status: 201, description: 'User successfully created' })
   @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
   async createUser(@Body() signupDto: SignupDto) {
-    return this.authService.createUser(signupDto.email, signupDto.password, signupDto.name, signupDto.role);
+    return this.authService.createUser(
+      signupDto.email,
+      signupDto.password,
+      signupDto.name,
+      signupDto.role,
+      signupDto.specialization,
+      signupDto.licenseNumber,
+      signupDto.shift
+    );
   }
 
   @Get('users')

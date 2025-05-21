@@ -203,7 +203,7 @@ const CustomerDashboard = () => {
               <TableHead>
                 <TableRow>
                   <TableCell>Treatment</TableCell>
-                  <TableCell>Medication</TableCell>
+                  <TableCell>Description</TableCell>
                   <TableCell>Instructions</TableCell>
                   <TableCell>Prescribed Date</TableCell>
                 </TableRow>
@@ -230,9 +230,71 @@ const CustomerDashboard = () => {
       </Paper>
     );
   };
-
   return (
     <Container maxWidth="lg" sx={{ mt: 14, mb: 4 }}>
+      {/* Profile Section */}      <Paper sx={{ p: 3, mb: 3, borderRadius: 2, boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+          <PersonIcon sx={{ fontSize: 32, color: 'primary.main', mr: 2 }} />
+          <Typography variant="h6" sx={{ color: 'primary.main' }}>
+            Profile Information
+          </Typography>
+        </Box>
+        <Grid container spacing={3}>
+          <Grid item xs={12} sm={6} md={4}>
+            <Box sx={{ bgcolor: 'background.default', p: 2, borderRadius: 1 }}>
+              <Typography variant="subtitle2" color="textSecondary" gutterBottom>
+                Name
+              </Typography>
+              <Typography variant="body1" sx={{ fontWeight: 500 }}>{user?.name}</Typography>
+            </Box>
+          </Grid>
+          <Grid item xs={12} sm={6} md={4}>
+            <Box sx={{ bgcolor: 'background.default', p: 2, borderRadius: 1 }}>
+              <Typography variant="subtitle2" color="textSecondary" gutterBottom>
+                Email
+              </Typography>
+              <Typography variant="body1" sx={{ fontWeight: 500 }}>{user?.email}</Typography>
+            </Box>
+          </Grid>
+          <Grid item xs={12} sm={6} md={4}>
+            <Box sx={{ bgcolor: 'background.default', p: 2, borderRadius: 1 }}>
+              <Typography variant="subtitle2" color="textSecondary" gutterBottom>
+                Phone Number
+              </Typography>
+              <Typography variant="body1" sx={{ fontWeight: 500 }}>{user?.customer?.phoneNumber || '-'}</Typography>
+            </Box>
+          </Grid>
+          <Grid item xs={12} sm={6} md={4}>
+            <Box sx={{ bgcolor: 'background.default', p: 2, borderRadius: 1 }}>
+              <Typography variant="subtitle2" color="textSecondary" gutterBottom>
+                Date of Birth
+              </Typography>
+              <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                {user?.customer?.dateOfBirth ? format(new Date(user.customer.dateOfBirth), 'MMMM d, yyyy') : '-'}
+              </Typography>
+            </Box>
+          </Grid>
+          <Grid item xs={12} sm={6} md={4}>
+            <Box sx={{ bgcolor: 'background.default', p: 2, borderRadius: 1 }}>
+              <Typography variant="subtitle2" color="textSecondary" gutterBottom>
+                Gender
+              </Typography>
+              <Typography variant="body1" sx={{ textTransform: 'capitalize', fontWeight: 500 }}>
+                {user?.customer?.gender ? user.customer.gender.toLowerCase() : '-'}
+              </Typography>
+            </Box>
+          </Grid>
+          <Grid item xs={12} sm={6} md={4}>
+            <Box sx={{ bgcolor: 'background.default', p: 2, borderRadius: 1 }}>
+              <Typography variant="subtitle2" color="textSecondary" gutterBottom>
+                Address
+              </Typography>
+              <Typography variant="body1" sx={{ fontWeight: 500 }}>{user?.customer?.address || '-'}</Typography>
+            </Box>
+          </Grid>
+        </Grid>
+      </Paper>
+
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" component="h1">
           Welcome, {user?.name}

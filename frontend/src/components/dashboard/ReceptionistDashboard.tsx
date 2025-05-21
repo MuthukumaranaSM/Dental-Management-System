@@ -24,6 +24,7 @@ import {
   InputAdornment,
   Tabs,
   Tab,
+  IconButton,
 } from '@mui/material';
 import { appointmentApi, authApi } from '../../services/api';
 import { format } from 'date-fns';
@@ -38,6 +39,7 @@ import {
   PersonAdd as PersonAddIcon,
   Group as GroupIcon,
   Search as SearchIcon,
+  Visibility as VisibilityIcon,
 } from '@mui/icons-material';
 import CreateCustomerModal from '../CreateCustomerModal';
 import { GenerateBillModal } from '../GenerateBillModal';
@@ -54,6 +56,9 @@ interface Appointment {
   customer: {
     name: string;
     email: string;
+    customer: {
+      phoneNumber: string;
+    };
   };
   dentist: {
     name: string;
@@ -68,6 +73,14 @@ interface User {
   specialization?: string;
   licenseNumber?: string;
   shift?: string;
+  customer?: {
+    id: number;
+    userId: number;
+    phoneNumber: string;
+    dateOfBirth?: string;
+    address?: string;
+    gender?: string;
+  };
 }
 
 export default function ReceptionistDashboard() {
@@ -207,19 +220,41 @@ export default function ReceptionistDashboard() {
   };
 
   const filteredAppointments = appointments.filter(appointment => {
+    // Convert search terms and data to lowercase for case-insensitive search
     const matchesStatus = statusFilter === 'all' || appointment.status === statusFilter;
-    const search = appointmentSearch.toLowerCase();
+    const search = appointmentSearch.toLowerCase().trim();
+    
+    // Check if the appointment date is from today
+    const isToday = (dateStr: string) => {
+      const date = new Date(dateStr);
+      const today = new Date();
+      return date.getDate() === today.getDate() &&
+        date.getMonth() === today.getMonth() &&
+        date.getFullYear() === today.getFullYear();
+    };
+
+    // Search in all relevant fields
     const matchesSearch =
       appointment.customer.name.toLowerCase().includes(search) ||
       appointment.customer.email.toLowerCase().includes(search) ||
       appointment.dentist.name.toLowerCase().includes(search) ||
-      appointment.reason.toLowerCase().includes(search);
+      appointment.reason.toLowerCase().includes(search) ||
+      (appointment.customer.customer?.phoneNumber || '').toLowerCase().includes(search) ||
+      (appointment.symptoms || []).some(symptom => symptom.toLowerCase().includes(search));
+
     return matchesStatus && (search === '' || matchesSearch);
   });
 
   const filteredUsers = users.filter(user => {
-    const matchesSearch = user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         user.email.toLowerCase().includes(searchQuery.toLowerCase());
+    // Convert search terms and data to lowercase for case-insensitive search
+    const search = searchQuery.toLowerCase().trim();
+    const matchesSearch = 
+      user.name.toLowerCase().includes(search) ||
+      user.email.toLowerCase().includes(search) ||
+      user.role.toLowerCase().includes(search) ||
+      (user.specialization || '').toLowerCase().includes(search) ||
+      (user.customer?.phoneNumber || '').toLowerCase().includes(search);
+    
     const matchesRole = roleFilter === 'all' || user.role === roleFilter;
     return matchesSearch && matchesRole;
   });
@@ -232,14 +267,17 @@ export default function ReceptionistDashboard() {
     navigate(`/users/${userId}`);
   };
 
-  const handleCreateCustomer = async (data: CreateCustomerFormData) => {
+  const handleCreateCustomer = async (data: any) => {
     try {
-      await createCustomer(data);
-      toast.success('Customer created successfully. A verification email has been sent to their email address.');
-      setShowCreateCustomerModal(false);
-      fetchCustomers();
-    } catch (error) {
-      toast.error('Failed to create customer');
+      await authApi.createUser({
+        ...data,
+        role: 'CUSTOMER'
+      });
+      setSuccessMessage('Customer created successfully');
+      setIsCreateCustomerModalOpen(false);
+      fetchUsers(); // Refresh the users list
+    } catch (error: any) {
+      setError(error.response?.data?.message || 'Failed to create customer');
     }
   };
 
@@ -376,6 +414,7 @@ export default function ReceptionistDashboard() {
                       <TableCell>Created At</TableCell>
                       <TableCell>Patient Name</TableCell>
                       <TableCell>Patient Email</TableCell>
+                      <TableCell>Phone Number</TableCell>
                       <TableCell>Dentist</TableCell>
                       <TableCell>Reason</TableCell>
                       <TableCell>Symptoms</TableCell>
@@ -399,6 +438,7 @@ export default function ReceptionistDashboard() {
                           </TableCell>
                           <TableCell sx={dashboardStyles.tableCell}>{appointment.customer.name}</TableCell>
                           <TableCell sx={dashboardStyles.tableCell}>{appointment.customer.email}</TableCell>
+                          <TableCell sx={dashboardStyles.tableCell}>{appointment.customer.customer?.phoneNumber || '-'}</TableCell>
                           <TableCell sx={dashboardStyles.tableCell}>{appointment.dentist.name}</TableCell>
                           <TableCell sx={dashboardStyles.tableCell}>{appointment.reason}</TableCell>
                           <TableCell sx={dashboardStyles.tableCell}>
@@ -469,31 +509,48 @@ export default function ReceptionistDashboard() {
                 <Table>
                   <TableHead>
                     <TableRow>
+                      <TableCell>ID</TableCell>
                       <TableCell>Name</TableCell>
                       <TableCell>Email</TableCell>
                       <TableCell>Role</TableCell>
-                      <TableCell>Specialization/Shift</TableCell>
-                      <TableCell>License Number</TableCell>
+                      <TableCell>Actions</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {filteredUsers.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={3} align="center">No users found</TableCell>
+                        <TableCell colSpan={5} align="center">No users found</TableCell>
                       </TableRow>
                     ) : (
                       filteredUsers.map((user) => (
-                        <TableRow
-                          key={user.id}
-                          hover
-                          onClick={() => handleUserClick(user.id)}
-                          sx={{ cursor: 'pointer' }}
-                        >
+                        <TableRow key={user.id}>
+                          <TableCell>{user.id}</TableCell>
                           <TableCell>{user.name}</TableCell>
                           <TableCell>{user.email}</TableCell>
-                          <TableCell>{user.role}</TableCell>
-                          <TableCell>{user.specialization || user.shift || '-'}</TableCell>
-                          <TableCell>{user.licenseNumber || '-'}</TableCell>
+                          <TableCell>
+                            <Chip
+                              label={user.role}
+                              color={
+                                user.role === 'MAIN_DOCTOR'
+                                  ? 'error'
+                                  : user.role === 'DENTIST'
+                                  ? 'warning'
+                                  : user.role === 'RECEPTIONIST'
+                                  ? 'info'
+                                  : 'success'
+                              }
+                              size="small"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <IconButton
+                              size="small"
+                              onClick={() => navigate(`/users/${user.id}`)}
+                              color="primary"
+                            >
+                              <VisibilityIcon />
+                            </IconButton>
+                          </TableCell>
                         </TableRow>
                       ))
                     )}

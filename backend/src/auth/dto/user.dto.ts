@@ -16,10 +16,24 @@ export class UserDto {
 
   @ApiProperty({ required: false })
   specialization?: string;
-
   @ApiProperty({ required: false })
   licenseNumber?: string;
 
   @ApiProperty({ required: false })
   shift?: string;
+  @ApiProperty({ required: false })
+  customer?: {
+    id: number;
+    userId: number;
+    dateOfBirth?: Date | null;
+    phoneNumber?: string | null;
+    address?: string | null;
+    gender?: string | null;
+  };
+
+  @ApiProperty()
+  createdAt?: Date;
+
+  @ApiProperty()
+  updatedAt?: Date;
 }

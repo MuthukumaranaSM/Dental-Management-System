@@ -21,6 +21,10 @@ export interface SignupData {
   email: string;
   password: string;
   role: string;
+  dateOfBirth?: string;
+  address?: string;
+  phoneNumber?: string;
+  gender?: 'MALE' | 'FEMALE' | 'OTHER';
 }
 
 interface CreateUserData extends SignupData {
@@ -58,9 +62,18 @@ export const authApi = {
   resetPassword: async (token: string, newPassword: string) => {
     const response = await axios.post(`${API_URL}/auth/reset-password`, { token, newPassword });
     return response.data;
-  },
-  createUser: async (data: CreateUserData) => {
-    const response = await axios.post(`${API_URL}/auth/admin/create-user`, data);
+  },  createUser: async (data: CreateUserData) => {
+    // Make sure role-specific fields are only included when needed
+    const payload = {
+      email: data.email,
+      password: data.password,
+      name: data.name,
+      role: data.role,
+      ...(data.specialization && { specialization: data.specialization }),
+      ...(data.licenseNumber && { licenseNumber: data.licenseNumber }),
+      ...(data.shift && { shift: data.shift })
+    };
+    const response = await axios.post(`${API_URL}/auth/admin/create-user`, payload);
     return response.data;
   },
   getAllUsers: async () => {

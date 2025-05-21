@@ -1,11 +1,17 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
+import { Role } from '../auth/enums/role.enum';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
+import { EmailService } from '../email/email.service';
 
 @Injectable()
 export class AdminService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private emailService: EmailService,
+  ) {}
 
   async createUser(createUserDto: CreateUserDto) {
     const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
@@ -19,14 +25,94 @@ export class AdminService {
       throw new NotFoundException(`Role ${createUserDto.role} not found`);
     }
 
-    return this.prisma.user.create({
+    // Check if email already exists
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: createUserDto.email }
+    });
+
+    if (existingUser) {
+      throw new ConflictException('Email already exists');
+    }
+
+    // Generate verification token
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const tokenExpires = new Date();
+    tokenExpires.setHours(tokenExpires.getHours() + 24); // Token expires in 24 hours
+
+    // Add role-specific data
+    let roleSpecificData = {};
+    if (createUserDto.role === Role.DENTIST) {
+      if (!createUserDto.specialization || !createUserDto.licenseNumber) {
+        throw new BadRequestException('Dentist requires specialization and license number');
+      }
+      roleSpecificData = {
+        dentist: {
+          create: {
+            specialization: createUserDto.specialization,
+            licenseNumber: createUserDto.licenseNumber,
+          },
+        },
+      };
+    } else if (createUserDto.role === Role.MAIN_DOCTOR) {
+      if (!createUserDto.specialization || !createUserDto.licenseNumber) {
+        throw new BadRequestException('Main Doctor requires specialization and license number');
+      }
+      roleSpecificData = {
+        mainDoctor: {
+          create: {
+            specialization: createUserDto.specialization,
+            licenseNumber: createUserDto.licenseNumber,
+          },
+        },
+      };
+    } else if (createUserDto.role === Role.RECEPTIONIST) {
+      if (!createUserDto.shift) {
+        throw new BadRequestException('Receptionist requires shift information');
+      }
+      roleSpecificData = {
+        receptionist: {
+          create: {
+            shift: createUserDto.shift,
+          },
+        },
+      };
+    } else if (createUserDto.role === Role.CUSTOMER) {
+      roleSpecificData = {
+        customer: {
+          create: {},
+        },
+      };
+    }
+
+    // Create user with role-specific data
+    const user = await this.prisma.user.create({
       data: {
         name: createUserDto.name,
         email: createUserDto.email,
         password: hashedPassword,
-        roleId: role.id
+        roleId: role.id,
+        emailVerificationToken: verificationToken,
+        emailVerificationTokenExpires: tokenExpires,
+        ...roleSpecificData,
+      },
+      include: {
+        role: true,
+        mainDoctor: true,
+        dentist: true,
+        receptionist: true,
+        customer: true,
       },
     });
+
+    // Send verification email
+    try {
+      await this.emailService.sendVerificationEmail(createUserDto.email, verificationToken);
+    } catch (error) {
+      console.error('Failed to send verification email:', error);
+      // Don't throw here, as user is already created
+    }
+
+    return user;
   }
 
   async getAllUsers() {
@@ -86,9 +172,9 @@ export class AdminService {
 
   async deleteUser(id: string) {
     const userId = parseInt(id, 10);
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
+    const user = await this.prisma.user.findUnique({      where: { id: userId },
       include: {
+        mainDoctor: true,
         dentist: true,
         receptionist: true,
         customer: true,
@@ -165,9 +251,17 @@ export class AdminService {
             { dentistId: userId }
           ]
         }
+      });      // Delete blocked slots for dentists
+      await prisma.blockedSlot.deleteMany({
+        where: { dentistId: userId }
       });
 
       // Delete role-specific records
+      if (user.mainDoctor) {
+        await prisma.mainDoctor.delete({
+          where: { userId }
+        });
+      }
       if (user.dentist) {
         await prisma.dentist.delete({
           where: { userId }

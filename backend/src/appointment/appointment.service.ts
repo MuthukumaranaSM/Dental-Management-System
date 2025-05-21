@@ -482,6 +482,11 @@ export class AppointmentService {
           select: {
             name: true,
             email: true,
+            customer: {
+              select: {
+                phoneNumber: true
+              }
+            }
           }
         },
         dentist: {

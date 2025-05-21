@@ -1,5 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsString, IsNotEmpty, MinLength, IsDateString } from 'class-validator';
+import { IsEmail, IsString, IsNotEmpty, MinLength, IsDateString, IsEnum } from 'class-validator';
+
+enum Gender {
+  MALE = 'MALE',
+  FEMALE = 'FEMALE',
+  OTHER = 'OTHER'
+}
 
 export class CreateCustomerDto {
   @ApiProperty({ example: 'John Doe' })
@@ -32,4 +38,9 @@ export class CreateCustomerDto {
   @IsString()
   @IsNotEmpty()
   phoneNumber: string;
-} 
+
+  @ApiProperty({ enum: Gender, example: Gender.MALE })
+  @IsEnum(Gender)
+  @IsNotEmpty()
+  gender: Gender;
+}

@@ -387,8 +387,8 @@ const PatientProfile = () => {
                 <TableHead>
                   <TableRow>
                     <TableCell>Date</TableCell>
+                    <TableCell>Treatment</TableCell>
                     <TableCell>Medication</TableCell>
-                    <TableCell>Dosage</TableCell>
                     <TableCell>Instructions</TableCell>
                   </TableRow>
                 </TableHead>

@@ -8,8 +8,28 @@ import {
   Button,
   Grid,
   Alert,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Select,
 } from '@mui/material';
 import { authApi } from '../services/api';
+
+enum Gender {
+  MALE = 'MALE',
+  FEMALE = 'FEMALE',
+  OTHER = 'OTHER'
+}
+
+interface CreateCustomerFormData {
+  name: string;
+  email: string;
+  password: string;
+  dateOfBirth: string;
+  address: string;
+  phoneNumber: string;
+  gender: Gender;
+}
 
 interface CreateCustomerModalProps {
   open: boolean;
@@ -18,17 +38,18 @@ interface CreateCustomerModalProps {
 }
 
 export default function CreateCustomerModal({ open, onClose, onSuccess }: CreateCustomerModalProps) {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<CreateCustomerFormData>({
     name: '',
     email: '',
     password: '',
     dateOfBirth: '',
     address: '',
     phoneNumber: '',
+    gender: Gender.MALE,
   });
   const [error, setError] = useState<string | null>(null);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -49,6 +70,7 @@ export default function CreateCustomerModal({ open, onClose, onSuccess }: Create
         dateOfBirth: '',
         address: '',
         phoneNumber: '',
+        gender: Gender.MALE,
       });
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to create customer');
@@ -130,6 +152,23 @@ export default function CreateCustomerModal({ open, onClose, onSuccess }: Create
                 onChange={handleChange}
               />
             </Grid>
+            <Grid item xs={12}>
+              <FormControl fullWidth>
+                <InputLabel id="gender-label">Gender</InputLabel>
+                <Select
+                  labelId="gender-label"
+                  id="gender"
+                  name="gender"
+                  value={formData.gender}
+                  onChange={handleChange}
+                  label="Gender"
+                >
+                  <MenuItem value={Gender.MALE}>Male</MenuItem>
+                  <MenuItem value={Gender.FEMALE}>Female</MenuItem>
+                  <MenuItem value={Gender.OTHER}>Other</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
           </Grid>
         </DialogContent>
         <DialogActions>
@@ -141,4 +180,4 @@ export default function CreateCustomerModal({ open, onClose, onSuccess }: Create
       </form>
     </Dialog>
   );
-} 
+}

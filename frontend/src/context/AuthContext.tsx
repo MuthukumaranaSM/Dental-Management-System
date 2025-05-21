@@ -8,6 +8,14 @@ interface User {
   specialization?: string;
   licenseNumber?: string;
   shift?: string;
+  customer?: {
+    id: number;
+    userId: number;
+    dateOfBirth: string;
+    phoneNumber: string;
+    address: string;
+    gender: string;
+  };
 }
 
 interface AuthContextType {

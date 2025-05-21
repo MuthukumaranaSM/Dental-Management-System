@@ -8,15 +8,19 @@ interface GenerateBillModalProps {
   isOpen: boolean;
   onClose: () => void;
   appointment: {
-    id: string;
+    id: number;
+    appointmentDate: string;
+    reason: string;
     customer: {
       name: string;
       email: string;
-      phoneNumber: string;
+      customer: {
+        phoneNumber: string;
+      };
     };
-    date: string;
-    time: string;
-    service: string;
+    dentist: {
+      name: string;
+    };
   };
 }
 
@@ -31,22 +35,21 @@ const BillPDF = ({ billData, appointment }: { billData: BillFormData; appointmen
   <Document>
     <Page size="A4" style={styles.page}>
       <View style={styles.header}>
-        <Text style={styles.title}>Dental Clinic Bill</Text>
-        <Text style={styles.date}>Date: {new Date().toLocaleDateString()}</Text>
+        <Text style={styles.title}>Dental Care+ Bill</Text>
+        <Text style={styles.date}>Generated on: {new Date().toLocaleDateString()}</Text>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Customer Information</Text>
+        <Text style={styles.sectionTitle}>Patient Information</Text>
         <Text>Name: {appointment.customer.name}</Text>
         <Text>Email: {appointment.customer.email}</Text>
+        <Text>Phone: {appointment.customer.customer?.phoneNumber || 'N/A'}</Text>
         <Text>Phone: {appointment.customer.phoneNumber}</Text>
-      </View>
-
-      <View style={styles.section}>
+      </View>      <View style={styles.section}>
         <Text style={styles.sectionTitle}>Appointment Details</Text>
-        <Text>Date: {appointment.date}</Text>
-        <Text>Time: {appointment.time}</Text>
-        <Text>Service: {appointment.service}</Text>
+        <Text>Date & Time: {new Date(appointment.appointmentDate).toLocaleString()}</Text>
+        <Text>Reason: {appointment.reason}</Text>
+        <Text>Dentist: {appointment.dentist.name}</Text>
       </View>
 
       <View style={styles.section}>
@@ -119,9 +122,9 @@ export const GenerateBillModal: React.FC<GenerateBillModalProps> = ({
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (values: BillFormData) => {
-    try {
+  try {
       setLoading(true);
-      await appointmentApi.generateBill(appointment.id, values);
+      await appointmentApi.generateBill(appointment.id.toString(), values);
       setBillData(values);
       message.success('Bill generated successfully');
     } catch (error) {
@@ -143,9 +146,8 @@ export const GenerateBillModal: React.FC<GenerateBillModalProps> = ({
         <Form
           form={form}
           layout="vertical"
-          onFinish={handleSubmit}
-          initialValues={{
-            serviceDescription: appointment.service,
+          onFinish={handleSubmit}          initialValues={{
+            serviceDescription: appointment.reason,
           }}
         >
           <Form.Item
